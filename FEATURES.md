@@ -277,10 +277,46 @@ string_value,  17,                 true,           123456789123456789, 17-MAY-12
 
 ### Dates and times
 
-Text in the CSV is parsed with these default formats:
+There is no separate `datetime` type: use **`timestamp`** for date + time. The value is stored as plain text in the CSV and
+converted when your code calls `getDate`, `getTime` or `getTimestamp`, using these default formats
+(`SimpleDateFormat` patterns):
 
-| Type        | Default pattern       | Example             |
-|-------------|-----------------------|---------------------|
+| JDBC getter    | Default pattern       | Example in the CSV     |
+|----------------|-----------------------|------------------------|
+| `getDate`      | `dd-MMM-yy`           | `17-MAY-12`            |
+| `getTime`      | `HH:mm`               | `14:30`                |
+| `getTimestamp` | `yyyyMMdd HHmmss.SSS` | `20120517 143000.000`  |
+
+What this means in practice:
+
+* **Each getter has its own format.** A date-only value cannot be read with `getTimestamp` (and vice versa) unless you
+  change the formats. The `|date` / `|time` / `|timestamp` type in the header only affects `ResultSetMetaData`,
+  not parsing.
+* **Date month names depend on the JVM default locale.** `17-MAY-12` works with English, but with an Italian locale you need
+  `17-MAG-12`. Case does not matter, and a 4-digit year (`17-May-2012`) is accepted. Set a numeric pattern (below)
+  to be locale-independent.
+* **Time seconds are dropped by the default format:** `14:30:15` is read as `14:30:00`. Use `HH:mm:ss` if you need them.
+* **The timestamp default needs the milliseconds:** `20120517 143000` fails, `20120517 143000.000` works.
+* Parsing only checks the beginning of the text, so trailing characters are ignored (`17-MAY-12 10:30` is read as the date
+  `17-MAY-12`). A value that does not match throws an `SQLException` ("Could not parse date ...").
+* Values are interpreted in the JVM default time zone.
+* `getObject(...)` is not implemented for CSV result sets (it returns `null`): use the typed getters.
+
+**Using ISO-like formats instead.** Set your own patterns once per thread (e.g. in `@Before`):
+
+```java
+DummyJdbcDriver.setDateFormat("yyyy-MM-dd");               // 2012-05-17
+DummyJdbcDriver.setTimeFormat("HH:mm:ss");                 // 14:30:15
+DummyJdbcDriver.setTimestampFormat("yyyy-MM-dd HH:mm:ss"); // 2012-05-17 14:30:15
+```
+
+* The formats are **per thread**: they apply only to the thread that called the setter. Other threads (executors, async code)
+  keep the defaults.
+* `reset()` does **not** restore the default formats.
+* The same patterns are used to write date/time/timestamp parameters into the `<resource>?params` lookup key and into
+  `<table>_PARAMS`. With the defaults, `setDate` produces `17-May-12`; with the ISO patterns above it produces `2012-05-17`.
+
+-------------|-----------------------|---------------------|
 | `Date`      | `dd-MMM-yy`           | `17-MAY-12`         |
 | `Time`      | `HH:mm`               | `14:30`             |
 | `Timestamp` | `yyyyMMdd HHmmss.SSS` | `20120517 143000.000` |
