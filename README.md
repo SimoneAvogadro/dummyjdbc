@@ -10,7 +10,7 @@ For more details please see the [Wiki](https://github.com/kaiwinter/dummyjdbc/wi
 ## New Methods in 1.5.0
 Refactored package in order to use `com.mindmercatis` instead of `com.googlecode` in order to proceed with the fork and keep releasing new versions.
 
-Three new methods have been added to `com.mindmercatis.dummyjdbc.DummyJdbcDriver` in order to support:
+Three new methods have been added to `me.avogadro.dummyjdbc.DummyJdbcDriver` in order to support:
 * Preparing tests as a simple sequence of expected table results
 
 ```java
