@@ -108,8 +108,13 @@ public final class DummyJdbcDriver implements Driver {
 	 *            A {@link File} object of a CSV file which should be parsed in order to return table data.
 	 */
 	public static void addTableResource(String tablename, File csvFile) {
-		Map<String, File> databaseMap = Collections.synchronizedMap(new HashMap<String, File>());
-		databaseMap.put(tablename, csvFile);
+		Map<String, File> databaseMap;
+		if (tableResources.containsKey(DEFAULT_DATABASE)) {
+			databaseMap = tableResources.get(DEFAULT_DATABASE);
+		} else {
+			databaseMap = Collections.synchronizedMap(new HashMap<String, File>());
+		}
+		databaseMap.put(tablename.toLowerCase(), csvFile);
 		tableResources.put(DEFAULT_DATABASE, databaseMap);
 	}
 

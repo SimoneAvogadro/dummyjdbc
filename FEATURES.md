@@ -217,9 +217,8 @@ ID, country_name, country_iso
 3, France, FR
 ```
 
-Use a **lower-case** table name when registering (the driver looks tables up in lower case).
-`addTableResource` is used for the default `any` database and replaces the previously registered
-file, so register the table right before you need it.
+Table names are matched case-insensitively, and you can register as many tables as you need by calling
+`addTableResource` repeatedly. Register tables **before** opening the connection.
 
 ### b) The `/tables/` classpath folder (zero setup)
 
