@@ -69,4 +69,17 @@ public final class DummyJdbcDriverTest {
 		Assert.assertEquals("x", rs.getString("name"));
 	}
 
+	@Test
+	public void testInMemoryStringKeepsUnicode() throws Exception {
+
+		Class.forName(DummyJdbcDriver.class.getCanonicalName());
+		DummyJdbcDriver.reset();
+		String text = "caff\u00e8, Zo\u00eb, \u20ac, \u65e5\u672c\u8a9e, \ud83d\ude00";
+		DummyJdbcDriver.addInMemoryTableResource("t", "name\n\"" + text + "\"");
+
+		java.sql.ResultSet rs = DriverManager.getConnection("any").createStatement().executeQuery("SELECT * FROM t");
+		Assert.assertTrue(rs.next());
+		Assert.assertEquals(text, rs.getString(1));
+	}
+
 }

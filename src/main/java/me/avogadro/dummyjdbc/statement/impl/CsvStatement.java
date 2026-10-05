@@ -1,13 +1,12 @@
 package me.avogadro.dummyjdbc.statement.impl;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.UnsupportedEncodingException;
+import java.io.Reader;
+import java.io.StringReader;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.security.CodeSource;
@@ -138,7 +137,7 @@ public final class CsvStatement extends StatementAdapter {
 	}
 
 	private ResultSet createResultSet(String tableName) {
-		InputStream inMemoryDataStream = null;
+		Reader inMemoryReader = null;
 		String inMemoryCSV = null;
 		
 		// search for "tablename?param1,param2" etc...
@@ -147,18 +146,14 @@ public final class CsvStatement extends StatementAdapter {
 		} // then search just for "tablename"
 		if (inMemoryCSV==null) {
 			inMemoryCSV = DummyJdbcDriver.getInMemoryTableResource(tableName);			
-		} // if any in memory CSV is found convert to InputStream 
+		} // if any in memory CSV is found read it directly: a String needs no charset
 		if (inMemoryCSV!=null) {
-			try {
-				inMemoryDataStream = new ByteArrayInputStream(inMemoryCSV.getBytes("ISO-8859-1"));
-			} catch (UnsupportedEncodingException e) {
-				throw new RuntimeException(e);
-			}
+			inMemoryReader = new StringReader(inMemoryCSV);
 		}
 		
 		// Does a text file for the dummy table exist?
 		File resource = tableResources.get(tableName.toLowerCase());
-		if (resource == null && inMemoryDataStream == null) {
+		if (resource == null && inMemoryReader == null) {
 			// Try to load a file from the ./tables/ directory
 			CodeSource src = CsvStatement.class.getProtectionDomain().getCodeSource();
 
@@ -177,20 +172,21 @@ public final class CsvStatement extends StatementAdapter {
 			}
 		}
 
-		InputStream dummyTableDataStream = null;
+		Reader dummyTableReader = null;
 		try {
 			if (resource==null) {
-				dummyTableDataStream = inMemoryDataStream;	// might be null => no inMemoryCSV
+				dummyTableReader = inMemoryReader;	// might be null => no inMemoryCSV
 			} else {
-				dummyTableDataStream = new FileInputStream(resource);
+				// files are read with the default charset of the VM
+				dummyTableReader = new InputStreamReader(new FileInputStream(resource));
 			}
-			return createGenericResultSet(tableName, dummyTableDataStream);
+			return createGenericResultSet(tableName, dummyTableReader);
 		} catch (FileNotFoundException e) {
 			LOGGER.info("No table definition found for '{}', using DummyResultSet.", tableName);
 		} finally {
-			if (dummyTableDataStream != null) {
+			if (dummyTableReader != null) {
 				try {
-					dummyTableDataStream.close();
+					dummyTableReader.close();
 				} catch (IOException e) {
 					// ignore
 				}
@@ -200,7 +196,7 @@ public final class CsvStatement extends StatementAdapter {
 		return new DummyResultSet();
 	}
 
-	private ResultSet createGenericResultSet(String tableName, InputStream dummyTableDataStream) {
+	private ResultSet createGenericResultSet(String tableName, Reader dummyTableDataReader) {
 
 		// Maps table columns to a number of available values.
 		Collection<LinkedHashMap<String, String>> entries = new ArrayList<LinkedHashMap<String, String>>();
@@ -208,7 +204,7 @@ public final class CsvStatement extends StatementAdapter {
 		CSVReader dummyTableReader = null;
 		try {
 
-			dummyTableReader = new CSVReader(new InputStreamReader(dummyTableDataStream));
+			dummyTableReader = new CSVReader(dummyTableDataReader);
 
 			// Read header
 			String[] header = dummyTableReader.readNext();

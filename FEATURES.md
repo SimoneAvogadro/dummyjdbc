@@ -346,7 +346,8 @@ Tips:
 * Call `DummyJdbcDriver.reset()` in your `@Before` – the driver keeps **static** state (resources and step counter).
 * `DummyJdbcDriver.clearInMemoryTableResources()` clears only the in-memory data.
 * Not every JDBC method is implemented; unsupported ones throw `UnsupportedOperationException`.
-* In-memory CSV text is read as ISO-8859-1.
+* **Character encoding:** in-memory CSV strings are used as they are, so any Unicode text works regardless of the VM settings.
+  CSV **files** (and `InputStream`s) are read with the default charset of the VM; make sure your files match it.
 
 ---
 
