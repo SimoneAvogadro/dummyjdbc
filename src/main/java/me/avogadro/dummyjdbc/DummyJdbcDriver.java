@@ -91,7 +91,12 @@ public final class DummyJdbcDriver implements Driver {
 	public static void reset() {
 		step = -1;
 		inMemoryTableResources = new HashMap<String,String>();
-		tableResources = Collections.synchronizedMap(new HashMap<String, Map<String, File>>());
+		// keep the per-database maps (connections hold a reference to them), just empty them
+		synchronized (tableResources) {
+			for (Map<String, File> databaseMap : tableResources.values()) {
+				databaseMap.clear();
+			}
+		}
 	}
 	
 	public static String getStepName() {
@@ -147,7 +152,17 @@ public final class DummyJdbcDriver implements Driver {
 
 		loadTableResources(database);
 
-		return new DummyConnection(tableResources.get(database));
+		// Hand over a map that is registered in the driver, so tables added after connecting are visible
+		Map<String, File> databaseMap;
+		synchronized (tableResources) {
+			databaseMap = tableResources.get(database);
+			if (databaseMap == null) {
+				databaseMap = Collections.synchronizedMap(new HashMap<String, File>());
+				tableResources.put(database, databaseMap);
+			}
+		}
+
+		return new DummyConnection(databaseMap);
 	}
 
 	@Override

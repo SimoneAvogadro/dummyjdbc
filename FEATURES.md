@@ -218,7 +218,8 @@ ID, country_name, country_iso
 ```
 
 Table names are matched case-insensitively, and you can register as many tables as you need by calling
-`addTableResource` repeatedly. Register tables **before** opening the connection.
+`addTableResource` repeatedly. Tables can also be registered after the connection has been opened, and
+`DummyJdbcDriver.reset()` does not detach connections that are already open.
 
 ### b) The `/tables/` classpath folder (zero setup)
 

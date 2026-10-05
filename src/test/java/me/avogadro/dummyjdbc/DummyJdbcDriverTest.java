@@ -30,4 +30,28 @@ public final class DummyJdbcDriverTest {
 		Assert.assertTrue(connection instanceof DummyConnection);
 	}
 
+	@Test
+	public void testTableAddedAfterConnect() throws Exception {
+
+		Class.forName(DummyJdbcDriver.class.getCanonicalName());
+		DummyJdbcDriver.reset();
+
+		// connection opened BEFORE any table is registered
+		Connection connection = DriverManager.getConnection("any");
+
+		DummyJdbcDriver.addTableResource("test_table",
+				new java.io.File(getClass().getResource("statement/impl/test_table.csv").toURI()));
+
+		java.sql.ResultSet resultSet = connection.createStatement().executeQuery("SELECT * FROM test_table");
+		Assert.assertTrue(resultSet.next());
+		Assert.assertEquals("Germany", resultSet.getString("country_name"));
+
+		// reset() must not detach already open connections
+		DummyJdbcDriver.reset();
+		DummyJdbcDriver.addTableResource("test_table",
+				new java.io.File(getClass().getResource("statement/impl/test_table.csv").toURI()));
+		resultSet = connection.createStatement().executeQuery("SELECT * FROM test_table");
+		Assert.assertTrue(resultSet.next());
+	}
+
 }
