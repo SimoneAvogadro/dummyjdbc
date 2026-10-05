@@ -269,7 +269,8 @@ string_value,  17,                 true,           123456789123456789, 17-MAY-12
 * Column names are case-insensitive; duplicate columns are rejected.
 * **Optional column types** in the header with `name|type`. Supported: `varchar` (default), `integer`,
   `double`, `date`, `time`, `timestamp`. They are exposed through `ResultSetMetaData`
-  (`getColumnType`, `getColumnClassName`, ...).
+  (`getColumnType`, `getColumnClassName`, ...). A typed column can be read by its plain name
+  (`rs.getInt("id")` for a header `id|integer`); the full header text (`"id|integer"`) works too.
 * Supported getters: `getString`, `getInt`, `getBoolean`, `getBigDecimal`, `getDate`, `getTime`, `getTimestamp`
   – by column label or by index.
 * Empty text is `0` for `getBigDecimal`.

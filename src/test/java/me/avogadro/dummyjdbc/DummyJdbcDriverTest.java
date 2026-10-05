@@ -54,4 +54,19 @@ public final class DummyJdbcDriverTest {
 		Assert.assertTrue(resultSet.next());
 	}
 
+	@Test
+	public void testTypedHeaderCanBeReadByPlainName() throws Exception {
+
+		Class.forName(DummyJdbcDriver.class.getCanonicalName());
+		DummyJdbcDriver.reset();
+		DummyJdbcDriver.addInMemoryTableResource("t", "id|integer, name\n1, x");
+
+		java.sql.ResultSet rs = DriverManager.getConnection("any").createStatement().executeQuery("SELECT * FROM t");
+		Assert.assertTrue(rs.next());
+		Assert.assertEquals(1, rs.getInt("id"));
+		Assert.assertEquals(1, rs.getInt("ID|INTEGER"));
+		Assert.assertEquals(1, rs.getInt(1));
+		Assert.assertEquals("x", rs.getString("name"));
+	}
+
 }

@@ -13,6 +13,7 @@ import java.text.SimpleDateFormat;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.Map;
 
 import me.avogadro.dummyjdbc.DummyJdbcDriver;
 import me.avogadro.dummyjdbc.resultset.DummyResultSet;
@@ -239,13 +240,25 @@ public class CSVResultSet extends DummyResultSet {
 	}
 
 	private String getValueForColumnLabel(String columnLabel, Class<?> clazz) throws SQLException {
-		if (!currentEntry.containsKey(columnLabel.toUpperCase())) {
-			String message = MessageFormat.format("Column ''{0}'' does not exist in table file ''{1}'' (type ''{2}'')",
-					columnLabel, tableName, clazz);
-			throw new SQLException(message);
+		String key = columnLabel.toUpperCase();
+
+		// 1: exact match of the header as written (e.g. "ID|INTEGER" or "ID")
+		if (currentEntry.containsKey(key)) {
+			return currentEntry.get(key);
 		}
 
-		return currentEntry.get(columnLabel.toUpperCase());
+		// 2: fallback for typed headers ("name|type"): match on the bare column name
+		for (Map.Entry<String, String> entry : currentEntry.entrySet()) {
+			String header = entry.getKey();
+			int typeSeparator = header.indexOf('|');
+			if (typeSeparator >= 0 && header.substring(0, typeSeparator).trim().equals(key.trim())) {
+				return entry.getValue();
+			}
+		}
+
+		String message = MessageFormat.format("Column ''{0}'' does not exist in table file ''{1}'' (type ''{2}'')",
+				columnLabel, tableName, clazz);
+		throw new SQLException(message);
 	}
 
 }
