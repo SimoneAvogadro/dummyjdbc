@@ -264,16 +264,45 @@ string_column, int_column|integer, boolean_column, bigdecimal_column, date_colum
 string_value,  17,                 true,           123456789123456789, 17-MAY-12
 ```
 
-* **Header first**, then one line per row. Values are trimmed. Standard CSV quoting applies.
+### File structure
+
+* **Header first**, then one line per row.
+* **Separator is the comma** (`,`), always. A `;`-separated file is read as a single column.
+* Text with commas, line breaks or quotes goes between double quotes (`"Smith, John"`); a quote inside is doubled
+  (`"say ""hi"""`).
+* **Whitespace around values is always removed**, also inside quotes: `"  x  "` is read as `x`.
 * Every row must have as many values as the header, otherwise an `IllegalArgumentException` is thrown.
+* A header-only CSV gives an empty result set (no rows).
 * Column names are case-insensitive; duplicate columns are rejected.
-* **Optional column types** in the header with `name|type`. Supported: `varchar` (default), `integer`,
-  `double`, `date`, `time`, `timestamp`. They are exposed through `ResultSetMetaData`
-  (`getColumnType`, `getColumnClassName`, ...). A typed column can be read by its plain name
-  (`rs.getInt("id")` for a header `id|integer`); the full header text (`"id|integer"`) works too.
-* Supported getters: `getString`, `getInt`, `getBoolean`, `getBigDecimal`, `getDate`, `getTime`, `getTimestamp`
-  – by column label or by index.
-* Empty text is `0` for `getBigDecimal`.
+* Encoding: see [section 10](#10-resolution-order-and-good-to-know).
+
+### Column names and types
+
+The header can optionally declare a type with `name|type`: `varchar` (default), `integer`, `double`, `date`, `time`,
+`timestamp`. The type is only exposed through `ResultSetMetaData` (`getColumnType`, `getColumnTypeName`,
+`getColumnClassName`, ...); it does **not** change how values are parsed. A typed column can be read by its plain name
+(`rs.getInt("id")` for a header `id|integer`); the full header text (`"id|integer"`) works too.
+
+### Values per data type
+
+Every value is stored as text. What is accepted is decided by the getter your code calls, not by the header:
+
+| Getter | Accepted text | Notes / what happens otherwise |
+|--------|---------------|--------------------------------|
+| `getString` | anything | Returned trimmed. An empty value is `""`. |
+| `getInt` | optional sign and digits: `17`, `-17`, `+17` | `17.0`, `1,000`, `0x10`, empty text or values above `2147483647` throw `NumberFormatException`. |
+| `getBigDecimal` | decimal number: `123456789123456789`, `12.50`, `-0.5`, `.5`, `1.5E+3` | Empty text gives `0`. Text such as `abc` or `NULL` throws `NumberFormatException`. Use `.` as decimal point and no thousands separator (a comma would need quotes and is not accepted). |
+| `getBoolean` | `true` in any case (`true`, `TRUE`, `True`) | **Everything else is `false`**, including `1`, `yes`, `y` and empty text. |
+| `getDate` / `getTime` / `getTimestamp` | see [Dates and times](#dates-and-times) | |
+
+Getters by column label or by 1-based index behave the same.
+
+**Not supported yet.** The following getters exist but do not read the CSV: `getLong`, `getDouble`, `getFloat`, `getShort`,
+`getByte` always return `0`, `getObject` and `getBytes` return `null`, and `wasNull()` is always `false`. For numbers use
+`getInt` or `getBigDecimal` (e.g. `rs.getBigDecimal("price").doubleValue()`).
+
+**There is no NULL.** The text `NULL` is just the string `"NULL"`, and an empty value is an empty string, so a database
+`NULL` cannot be represented.
 
 ### Dates and times
 
