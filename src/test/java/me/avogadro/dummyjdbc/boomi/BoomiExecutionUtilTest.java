@@ -44,7 +44,7 @@ public final class BoomiExecutionUtilTest {
 
 	@Test
 	public void testPropertyName() {
-		Assert.assertEquals("dummyjdbc_users_params", BoomiExecutionUtil.propertyName(" users_PARAMS "));
+		Assert.assertEquals("dummyjdbc_users_PARAMS", BoomiExecutionUtil.propertyName(" users_PARAMS "));
 	}
 
 	@Test
@@ -60,6 +60,64 @@ public final class BoomiExecutionUtilTest {
 		Assert.assertEquals("John", resultSet.getString("name"));
 		Assert.assertEquals(20, resultSet.getInt("age"));
 		Assert.assertFalse(resultSet.next());
+	}
+
+	@Test
+	public void testTestCaseFoundWithExactCase() throws Exception {
+		BoomiExecutionUtil.lookup(FakeExecutionUtil.class.getName());
+
+		FakeExecutionUtil.PROPERTIES.put("dummyjdbc_T_014a", "name\nexact");
+
+		Assert.assertEquals("name\nexact", queryTestCase("T_014a"));
+	}
+
+	@Test
+	public void testTestCaseFoundInLowerCase() throws Exception {
+		BoomiExecutionUtil.lookup(FakeExecutionUtil.class.getName());
+
+		FakeExecutionUtil.PROPERTIES.put("dummyjdbc_t_014a", "name\nlower");
+
+		Assert.assertEquals("name\nlower", queryTestCase("T_014a"));
+	}
+
+	@Test
+	public void testExactCaseWinsOverLowerCase() throws Exception {
+		BoomiExecutionUtil.lookup(FakeExecutionUtil.class.getName());
+
+		FakeExecutionUtil.PROPERTIES.put("dummyjdbc_T_014a", "name\nexact");
+		FakeExecutionUtil.PROPERTIES.put("dummyjdbc_t_014a", "name\nlower");
+
+		Assert.assertEquals("name\nexact", queryTestCase("T_014a"));
+	}
+
+	@Test
+	public void testBlankExactCaseFallsBackToLowerCase() throws Exception {
+		BoomiExecutionUtil.lookup(FakeExecutionUtil.class.getName());
+
+		FakeExecutionUtil.PROPERTIES.put("dummyjdbc_T_014a", " ");
+		FakeExecutionUtil.PROPERTIES.put("dummyjdbc_t_014a", "name\nlower");
+
+		Assert.assertEquals("name\nlower", queryTestCase("T_014a"));
+	}
+
+	@Test
+	public void testCapturedParamsKeepTableCaseAsInSql() throws Exception {
+		BoomiExecutionUtil.lookup(FakeExecutionUtil.class.getName());
+
+		PreparedStatement statement = DriverManager.getConnection("any")
+				.prepareStatement("-- TESTCASE: T_014a\nUPDATE Users SET name=?");
+		statement.setString(1, "bob");
+		statement.executeUpdate();
+
+		Assert.assertEquals("bob", FakeExecutionUtil.PROPERTIES.get("dummyjdbc_T_014a_PARAMS"));
+	}
+
+	/** runs a query selected by an explicit test case and returns the value of its NAME column, as "name\n<value>" */
+	private static String queryTestCase(String testCase) throws Exception {
+		ResultSet resultSet = DriverManager.getConnection("any").createStatement()
+				.executeQuery("-- TESTCASE: " + testCase + "\nSELECT * FROM something");
+		Assert.assertTrue(resultSet.next());
+		return "name\n" + resultSet.getString("name");
 	}
 
 	@Test
@@ -109,8 +167,9 @@ public final class BoomiExecutionUtilTest {
 		statement.setInt(2, 30);
 		statement.execute();
 
-		Assert.assertEquals("hello,30", FakeExecutionUtil.PROPERTIES.get("dummyjdbc_users_params"));
-		Assert.assertEquals(Boolean.FALSE, FakeExecutionUtil.PERSIST_FLAGS.get("dummyjdbc_users_params"));
+		Assert.assertEquals("hello,30", FakeExecutionUtil.PROPERTIES.get("dummyjdbc_users_PARAMS"));
+		Assert.assertEquals(Boolean.FALSE, FakeExecutionUtil.PERSIST_FLAGS.get("dummyjdbc_users_PARAMS"));
+		Assert.assertEquals(1, FakeExecutionUtil.PROPERTIES.size());
 		// still available through the driver API as before
 		Assert.assertEquals("hello,30", DummyJdbcDriver.getInMemoryTableResource("users_PARAMS"));
 	}

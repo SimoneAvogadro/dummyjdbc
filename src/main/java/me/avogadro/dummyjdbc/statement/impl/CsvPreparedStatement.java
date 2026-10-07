@@ -111,7 +111,7 @@ public class CsvPreparedStatement extends PreparedStatementAdapter {
 				String paramsResource = targetTable4Updates+PARAMS_SUFFIX;
 				String paramsValue = buildParamsString();
 				DummyJdbcDriver.addInMemoryTableResource( paramsResource, paramsValue );
-				// inside Boomi also expose them as Dynamic Process Property (e.g. dummyjdbc_users_params)
+				// inside Boomi also expose them as Dynamic Process Property (e.g. dummyjdbc_users_PARAMS)
 				BoomiExecutionUtil.setDynamicProcessProperty( BoomiExecutionUtil.propertyName(paramsResource), paramsValue );
 			}
 			

@@ -402,16 +402,31 @@ make a query fail.
 
 ### Property names
 
-Every resource maps to one Dynamic Process Property: the prefix `dummyjdbc_` followed by the resource name in
-**lower case**. Boomi property names are case-sensitive, so use lower case in your process.
+Every resource maps to a Dynamic Process Property named with the prefix `dummyjdbc_` followed by the resource name
+**as you write it** in your SQL or Java code, so the names are the same whether you work "via Java" or "via Boomi".
 
-| Driver resource | Dynamic Process Property |
-|-----------------|--------------------------|
-| table `USERS` (from `SELECT * FROM USERS`) | `dummyjdbc_users` |
-| `-- TESTCASE: Hello1` | `dummyjdbc_hello1` |
-| table with parameters `mytable?Smith,34` | `dummyjdbc_mytable?smith,34` |
-| step 0 ([section 5](#5-step-based-results-a-scripted-sequence)) | `dummyjdbc_##step0` |
-| captured parameters of `INSERT INTO users ...` | `dummyjdbc_users_params` |
+Boomi property names are case-sensitive while the driver is not, so when **reading** a resource the driver tries:
+
+1. the name exactly as written, e.g. `-- TESTCASE: T_014a` → `dummyjdbc_T_014a`;
+2. then the same name in lower case → `dummyjdbc_t_014a`.
+
+The first one that is set and not blank is used.
+
+| Driver resource | Dynamic Process Property (read: as written, then lower case) |
+|-----------------|-----------------------------------------------|
+| table in `SELECT * FROM Users` | `dummyjdbc_Users`, then `dummyjdbc_users` |
+| `-- TESTCASE: T_014a` | `dummyjdbc_T_014a`, then `dummyjdbc_t_014a` |
+| table with parameters `mytable?Smith,34` ([section 4](#4-different-results-for-different-parameters)) | `dummyjdbc_mytable?Smith,34`, then `dummyjdbc_mytable?smith,34` |
+| step 0 ([section 5](#5-step-based-results-a-scripted-sequence)) | `dummyjdbc_##STEP0`, then `dummyjdbc_##step0` |
+
+When **writing** captured parameters the driver uses one name: the table (or test case) as written in the SQL followed
+by `_PARAMS` in upper case, exactly like the in-memory resource of [section 6](#6-capturing-insert--update-parameters):
+
+| Statement | Dynamic Process Property (written) |
+|-----------|-------------------------------------|
+| `INSERT INTO users (...)` | `dummyjdbc_users_PARAMS` |
+| `UPDATE Users SET ...` | `dummyjdbc_Users_PARAMS` |
+| `-- TESTCASE: T_014a` + INSERT/UPDATE | `dummyjdbc_T_014a_PARAMS` |
 
 ### Providing tables from the process
 
@@ -428,6 +443,7 @@ A later `SELECT * FROM users` run through a Database connector that uses dummyjd
 * A resource added in memory with `DummyJdbcDriver.addInMemoryTableResource(...)` **wins** over the property; the
   property is used only when nothing is registered in memory under that name.
 * An empty (or blank) property counts as not defined.
+* Remember the case rule above: `dummyjdbc_users` is found by `FROM users`, `FROM USERS` and `FROM Users`.
 * The value follows the [CSV format](#9-csv-format-reference) (header first; `\n` between rows).
 
 ### Reading captured parameters in the process
@@ -436,7 +452,7 @@ Every time the driver captures the parameters of an INSERT/UPDATE ([section 6](#
 it also stores them in a Dynamic Process Property, **never persisted** across executions (`persist=false`):
 
 ```groovy
-String params = ExecutionUtil.getDynamicProcessProperty("dummyjdbc_users_params")   // e.g. "hello,30"
+String params = ExecutionUtil.getDynamicProcessProperty("dummyjdbc_users_PARAMS")   // e.g. "hello,30"
 ```
 
 The value is the same one returned by `DummyJdbcDriver.getInMemoryTableResource("users_PARAMS")`, which keeps working

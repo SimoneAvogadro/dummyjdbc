@@ -42,14 +42,45 @@ public final class BoomiExecutionUtil {
 	}
 
 	/**
-	 * Name of the Dynamic Process Property used for a driver resource, e.g. <code>users_PARAMS</code> becomes
-	 * <code>dummyjdbc_users_params</code>
+	 * Name of the Dynamic Process Property used for a driver resource, keeping the case of the resource name, e.g.
+	 * <code>users_PARAMS</code> becomes <code>dummyjdbc_users_PARAMS</code>
 	 *
 	 * @param resourceName name of a table, test case, step or captured parameters
-	 * @return the property name (prefix + lower case resource name)
+	 * @return the property name (prefix + resource name as written)
 	 */
 	public static String propertyName(String resourceName) {
-		return PROPERTY_PREFIX + resourceName.toLowerCase().trim();
+		return PROPERTY_PREFIX + resourceName.trim();
+	}
+
+	/**
+	 * Reads the Dynamic Process Property of a driver resource. Boomi property names are case sensitive while the
+	 * driver resources are not, so the name is tried as written first (e.g. <code>dummyjdbc_T_014a</code>) and then in
+	 * lower case (<code>dummyjdbc_t_014a</code>). Empty or blank values count as not defined.
+	 *
+	 * @param resourceName name of a table, test case, step or captured parameters
+	 * @return the trimmed property value, or <code>null</code> if not defined or not running inside Boomi
+	 */
+	public static String getResourceProperty(String resourceName) {
+		if (!isBoomi()) {
+			return null;
+		}
+		String exactName = propertyName(resourceName);
+		String value = trimToNull(getDynamicProcessProperty(exactName));
+		if (value == null) {
+			String lowerCaseName = propertyName(resourceName.toLowerCase());
+			if (!lowerCaseName.equals(exactName)) {
+				value = trimToNull(getDynamicProcessProperty(lowerCaseName));
+			}
+		}
+		return value;
+	}
+
+	private static String trimToNull(String value) {
+		if (value == null) {
+			return null;
+		}
+		String trimmed = value.trim();
+		return trimmed.isEmpty() ? null : trimmed;
 	}
 
 	/**
