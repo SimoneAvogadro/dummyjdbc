@@ -21,6 +21,8 @@ Unreleased
    Boomi Database V2 connector can bind parameters by type; new header types `|bigint`, `|decimal`, `|boolean`
  * `getGeneratedKeys()` returns an empty result set (was null: every Boomi DB V2 insert failed), `addBatch()` /
    `executeBatch()` run the statement once per parameter set ("Commit By Rows"), `setMaxRows()` is honoured
+ * `setLong`, `setShort`, `setByte`, `setFloat`, `setBoolean`, `setNull`, `setObject(..., type)` and `clearParameters()`
+   are captured/honoured; `findColumn()` is implemented; `SELECT 1` and unknown tables return metadata (was null)
  * Driver version reported as 1.5 (was 1.0)
  * Boomi support through Dynamic Process Properties (detected at runtime via reflection, no dependency on Boomi):
    tables can be provided as `dummyjdbc_<name>` properties (name as written, then lower case) and captured

@@ -369,7 +369,7 @@ public final class CsvStatement extends StatementAdapter {
 
 		entries.add(map);
 
-		return new CSVResultSet(null, null, entries);
+		return new CSVResultSet(null, new DummyResultSetMetaData(null, new String[] { "1" }), entries);
 	}
 
 	private static String resolveHeaderName(String str) {

@@ -229,7 +229,7 @@ public class DummyResultSet implements ResultSet {
 
 	@Override
 	public ResultSetMetaData getMetaData() throws SQLException {
-		return null;
+		return new DummyResultSetMetaData(null, new String[0]);	// no columns, but never null
 	}
 
 	@Override

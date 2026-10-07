@@ -189,6 +189,52 @@ public class CsvPreparedStatement extends PreparedStatementAdapter {
 	}
 
 	@Override
+	public void setObject(int parameterIndex, Object x, int targetSqlType) throws SQLException {
+		params[parameterIndex]=x;
+	}
+
+	@Override
+	public void setObject(int parameterIndex, Object x, int targetSqlType, int scaleOrLength) throws SQLException {
+		params[parameterIndex]=x;
+	}
+
+	@Override
+	public void setLong(int parameterIndex, long x) throws SQLException {
+		params[parameterIndex]=x;
+	}
+
+	@Override
+	public void setShort(int parameterIndex, short x) throws SQLException {
+		params[parameterIndex]=x;
+	}
+
+	@Override
+	public void setByte(int parameterIndex, byte x) throws SQLException {
+		params[parameterIndex]=x;
+	}
+
+	@Override
+	public void setFloat(int parameterIndex, float x) throws SQLException {
+		params[parameterIndex]=x;
+	}
+
+	@Override
+	public void setBoolean(int parameterIndex, boolean x) throws SQLException {
+		params[parameterIndex]=x;
+	}
+
+	/** a NULL parameter is captured as an empty value */
+	@Override
+	public void setNull(int parameterIndex, int sqlType) throws SQLException {
+		params[parameterIndex]=null;
+	}
+
+	@Override
+	public void setNull(int parameterIndex, int sqlType, String typeName) throws SQLException {
+		params[parameterIndex]=null;
+	}
+
+	@Override
 	public void setString(int parameterIndex, String x) throws SQLException {
 		params[parameterIndex]=x;
 	}

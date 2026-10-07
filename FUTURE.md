@@ -10,6 +10,7 @@ implemented yet**. Each item says what is missing today and what a change would 
 * **Today:** `getObject(...)` and `getBytes(...)` return `null`; `wasNull()` is always `false`.
 * **Idea:** make `getObject` return a Java object based on the declared column type (`name|integer` → `Integer`,
   `date` → `java.sql.Date`, ...; `String` when no type is declared), and make `wasNull()` reflect the last value read.
+* **Why:** the Boomi Database V2 connector uses `getObject` for link elements.
 * **Depends on:** the NULL convention below.
 
 ### 2. A representation for SQL `NULL`

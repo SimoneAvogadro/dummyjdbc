@@ -103,6 +103,22 @@ public class CSVResultSet extends DummyResultSet {
 		return false;
 	}
 
+	/**
+	 * @return the 1-based index of the column with the given name (case insensitive, without the "|type" part)
+	 */
+	@Override
+	public int findColumn(String columnLabel) throws SQLException {
+		if (metaData != null && columnLabel != null) {
+			for (int i = 1; i <= metaData.getColumnCount(); i++) {
+				if (metaData.getColumnName(i).equalsIgnoreCase(columnLabel.trim())) {
+					return i;
+				}
+			}
+		}
+		throw new SQLException(MessageFormat.format("Column ''{0}'' does not exist in table file ''{1}''", columnLabel,
+				tableName));
+	}
+
 	@Override
 	public int getRow() throws SQLException {
 		return row;

@@ -321,7 +321,8 @@ Every value is stored as text. What is accepted is decided by the getter your co
 Getters by column label or by 1-based index behave the same.
 
 **Not supported yet.** `getObject` and `getBytes` return `null`, and `wasNull()` is always `false`: use the typed
-getters. `getRow()` returns the number of the current row (1 for the first, 0 before the first and after the last).
+getters. `getRow()` returns the number of the current row (1 for the first, 0 before the first and after the last);
+`findColumn(name)` returns the 1-based index of a column (case insensitive).
 
 **There is no NULL.** The text `NULL` is just the string `"NULL"`, and an empty value is an empty string, so a database
 `NULL` cannot be represented.
