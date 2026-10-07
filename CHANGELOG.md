@@ -1,6 +1,13 @@
 Change Log
 ==========
 
+Unreleased
+----------------------------
+
+ * Boomi support through Dynamic Process Properties (detected at runtime via reflection, no dependency on Boomi):
+   tables can be provided as `dummyjdbc_<name>` properties and captured INSERT/UPDATE parameters are exposed as
+   `dummyjdbc_<table>_params` (never persisted)
+
 Version 1.5.1
 ----------------------------
 

@@ -18,7 +18,8 @@ This guide starts from the simplest case and builds up.
 8. [Several "databases" with JDBC URLs](#8-several-databases-with-jdbc-urls)
 9. [CSV format reference](#9-csv-format-reference)
 10. [Resolution order and good-to-know](#10-resolution-order-and-good-to-know)
-11. [API summary](#11-api-summary)
+11. [Running inside Boomi](#11-running-inside-boomi)
+12. [API summary](#12-api-summary)
 
 ---
 
@@ -368,7 +369,8 @@ For each executed query the driver tries, in this order:
 6. Otherwise an empty dummy result set.
 
 For a given name, the data source is chosen as: `name?params` (in memory) → `name` (in memory) → registered file →
-`/tables/name.csv`.
+`/tables/name.csv`. Inside Boomi, each in-memory lookup that finds nothing also checks the matching Dynamic Process Property
+([section 11](#11-running-inside-boomi)).
 
 Tips:
 
@@ -380,7 +382,69 @@ Tips:
 
 ---
 
-## 11. API summary
+## 11. Running inside Boomi
+
+When the driver runs inside a Boomi runtime (Atom, Molecule, Atom Cloud) it can exchange data with the process through
+**Dynamic Process Properties**: tables can be provided by the process, and captured INSERT/UPDATE parameters can be read
+back by the process.
+
+### Detection
+
+The driver looks for the Boomi class `com.boomi.execution.ExecutionUtil` on the classpath when it is first needed.
+
+* If the class is found, Boomi support is on. The driver calls
+  `ExecutionUtil.getDynamicProcessProperty(name)` and `ExecutionUtil.setDynamicProcessProperty(name, value, false)`.
+* If the class is not found, Boomi support is off and the driver behaves exactly as described in the rest of this guide.
+
+The calls go through Java reflection (`me.avogadro.dummyjdbc.boomi.BoomiExecutionUtil`), so the driver has **no
+dependency on Boomi** and the same jar works everywhere. Errors while calling Boomi are logged and ignored; they never
+make a query fail.
+
+### Property names
+
+Every resource maps to one Dynamic Process Property: the prefix `dummyjdbc_` followed by the resource name in
+**lower case**. Boomi property names are case-sensitive, so use lower case in your process.
+
+| Driver resource | Dynamic Process Property |
+|-----------------|--------------------------|
+| table `USERS` (from `SELECT * FROM USERS`) | `dummyjdbc_users` |
+| `-- TESTCASE: Hello1` | `dummyjdbc_hello1` |
+| table with parameters `mytable?Smith,34` | `dummyjdbc_mytable?smith,34` |
+| step 0 ([section 5](#5-step-based-results-a-scripted-sequence)) | `dummyjdbc_##step0` |
+| captured parameters of `INSERT INTO users ...` | `dummyjdbc_users_params` |
+
+### Providing tables from the process
+
+Set a Dynamic Process Property with the CSV text as value, for example with a Set Properties shape or a script:
+
+```groovy
+import com.boomi.execution.ExecutionUtil
+
+ExecutionUtil.setDynamicProcessProperty("dummyjdbc_users", "name, age\nJohn, 20\nMary, 31", false)
+```
+
+A later `SELECT * FROM users` run through a Database connector that uses dummyjdbc returns those two rows.
+
+* A resource added in memory with `DummyJdbcDriver.addInMemoryTableResource(...)` **wins** over the property; the
+  property is used only when nothing is registered in memory under that name.
+* An empty (or blank) property counts as not defined.
+* The value follows the [CSV format](#9-csv-format-reference) (header first; `\n` between rows).
+
+### Reading captured parameters in the process
+
+Every time the driver captures the parameters of an INSERT/UPDATE ([section 6](#6-capturing-insert--update-parameters))
+it also stores them in a Dynamic Process Property, **never persisted** across executions (`persist=false`):
+
+```groovy
+String params = ExecutionUtil.getDynamicProcessProperty("dummyjdbc_users_params")   // e.g. "hello,30"
+```
+
+The value is the same one returned by `DummyJdbcDriver.getInMemoryTableResource("users_PARAMS")`, which keeps working
+as before.
+
+---
+
+## 12. API summary
 
 | Method | Purpose |
 |--------|---------|
@@ -394,3 +458,4 @@ Tips:
 | `clearInMemoryTableResources()` | Remove all in-memory datasets |
 | `reset()` | Clear all resources and restart step counting |
 | `setDateFormat / setTimeFormat / setTimestampFormat(String)` | Formats used to parse CSV dates and render parameters |
+| `BoomiExecutionUtil.isBoomi()` | `true` when the Boomi runtime classes are found ([section 11](#11-running-inside-boomi)) |

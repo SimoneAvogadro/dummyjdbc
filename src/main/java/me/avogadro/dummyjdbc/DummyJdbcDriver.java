@@ -19,6 +19,7 @@ import java.util.Properties;
 import java.util.Scanner;
 import java.util.logging.Logger;
 
+import me.avogadro.dummyjdbc.boomi.BoomiExecutionUtil;
 import me.avogadro.dummyjdbc.connection.impl.DummyConnection;
 import me.avogadro.dummyjdbc.utils.FilenameUtils;
 import me.avogadro.dummyjdbc.utils.StringUtils;
@@ -274,12 +275,24 @@ public final class DummyJdbcDriver implements Driver {
 
 
 	/**
-	 * Get the current value of the resource, used mainly to examine the parameters used for INSERT/UPDATE queries
+	 * Get the current value of the resource, used mainly to examine the parameters used for INSERT/UPDATE queries.
+	 * When running inside Boomi and the resource has not been added in memory, the Dynamic Process Property
+	 * <code>dummyjdbc_&lt;testID in lower case&gt;</code> is used instead.
 	 * @param testID
 	 * @return
 	 */
 	public static String getInMemoryTableResource(String testID) {
-		return inMemoryTableResources.get(testID.toLowerCase().trim());
+		String value = inMemoryTableResources.get(testID.toLowerCase().trim());
+		if (value == null && BoomiExecutionUtil.isBoomi()) {
+			value = BoomiExecutionUtil.getDynamicProcessProperty(BoomiExecutionUtil.propertyName(testID));
+			if (value != null) {
+				value = value.trim();
+				if (value.isEmpty()) {
+					value = null;	// an empty property means "not defined"
+				}
+			}
+		}
+		return value;
 	}
 	
 	/**

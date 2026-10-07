@@ -12,6 +12,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import me.avogadro.dummyjdbc.DummyJdbcDriver;
+import me.avogadro.dummyjdbc.boomi.BoomiExecutionUtil;
 import me.avogadro.dummyjdbc.statement.PreparedStatementAdapter;
 
 /**
@@ -106,8 +107,13 @@ public class CsvPreparedStatement extends PreparedStatementAdapter {
 			return 0;
 		
 		} finally {
-			if (targetTable4Updates!=null)
-				DummyJdbcDriver.addInMemoryTableResource( targetTable4Updates+PARAMS_SUFFIX, buildParamsString() );
+			if (targetTable4Updates!=null) {
+				String paramsResource = targetTable4Updates+PARAMS_SUFFIX;
+				String paramsValue = buildParamsString();
+				DummyJdbcDriver.addInMemoryTableResource( paramsResource, paramsValue );
+				// inside Boomi also expose them as Dynamic Process Property (e.g. dummyjdbc_users_params)
+				BoomiExecutionUtil.setDynamicProcessProperty( BoomiExecutionUtil.propertyName(paramsResource), paramsValue );
+			}
 			
 			params = new Object[MAX_PARAMS];
 			
