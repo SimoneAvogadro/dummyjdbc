@@ -38,12 +38,17 @@ public class DummyResultSetMetaData implements ResultSetMetaData {
     private static final int DEFAULT_COLUMN_PRECISION = 60;
     private static final int DEFAULT_COLUMN_SCALE = 0;
     private final String tableName;
+    /** column names as written in the CSV header (without the optional "|type"), returned by getColumnName/Label */
     private final String[] columnNames;
+    /** upper case column names, keys of {@link #columnTypes} */
+    private final String[] columnKeys;
+    /** upper case column name to type: column lookups are case insensitive */
     private final LinkedHashMap<String, DataType> columnTypes = new LinkedHashMap<>();
 
     public DummyResultSetMetaData(String tableName, String[] columnSpecs) {
+        LinkedHashMap<String, String> names = new LinkedHashMap<>();
         for (String columnSpec : columnSpecs) {
-            String[] specElems = Objects.requireNonNull(columnSpec.trim().toUpperCase(), "Header must be specified").split("\\s*\\|\\s*");
+            String[] specElems = Objects.requireNonNull(columnSpec, "Header must be specified").trim().split("\\s*\\|\\s*");
             DataType dt;
             switch (specElems.length) {
                 case 1:
@@ -55,9 +60,12 @@ public class DummyResultSetMetaData implements ResultSetMetaData {
                 default:
                     throw new IllegalArgumentException("Unknown column spec: " + columnSpec);
             }
-            columnTypes.put(specElems[0], dt);
+            String key = specElems[0].toUpperCase();
+            columnTypes.put(key, dt);
+            names.put(key, specElems[0]);
         }
-        columnNames = columnTypes.keySet().toArray(new String[0]);
+        columnKeys = columnTypes.keySet().toArray(new String[0]);
+        columnNames = names.values().toArray(new String[0]);
         this.tableName = tableName;
     }
 
@@ -149,12 +157,12 @@ public class DummyResultSetMetaData implements ResultSetMetaData {
 
     @Override
     public int getColumnType(int column) throws SQLException {
-        return columnTypes.get(columnNames[column - 1]).sqlType;
+        return columnTypes.get(columnKeys[column - 1]).sqlType;
     }
 
     @Override
     public String getColumnTypeName(int column) throws SQLException {
-        return columnTypes.get(columnNames[column - 1]).name();
+        return columnTypes.get(columnKeys[column - 1]).name();
     }
 
     @Override
@@ -175,7 +183,7 @@ public class DummyResultSetMetaData implements ResultSetMetaData {
 
     @Override
     public String getColumnClassName(int column) throws SQLException {
-        return columnTypes.get(columnNames[column - 1]).clazz.getName();
+        return columnTypes.get(columnKeys[column - 1]).clazz.getName();
     }
 
     @Override

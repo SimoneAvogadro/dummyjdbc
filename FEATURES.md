@@ -289,7 +289,9 @@ string_value,  17,                 true,           123456789123456789, 17-MAY-12
 * **Whitespace around values is always removed**, also inside quotes: `"  x  "` is read as `x`.
 * Every row must have as many values as the header, otherwise an `IllegalArgumentException` is thrown.
 * A header-only CSV gives an empty result set (no rows).
-* Column names are case-insensitive; duplicate columns are rejected.
+* Column names are case-insensitive when reading values (`getString("name")` = `getString("NAME")`), while
+  `ResultSetMetaData.getColumnName()` / `getColumnLabel()` return them **as written** in the header (without `|type`),
+  like a real database. Duplicate columns are rejected.
 * Encoding: see [section 10](#10-resolution-order-and-good-to-know).
 
 ### Column names and types

@@ -36,8 +36,12 @@ public class ResultSetMetaDataTest {
     @Test
     public void testMetaData() throws SQLException {
         Assert.assertEquals(resultSetMetaData.getColumnCount(), 6);
-        Assert.assertEquals(resultSetMetaData.getColumnName(1), "string_column".toUpperCase());
-        Assert.assertEquals(resultSetMetaData.getColumnName(6), "date_column_invalid".toUpperCase());
+        // names as written in the CSV header, without the "|type" part
+        Assert.assertEquals("string_column", resultSetMetaData.getColumnName(1));
+        Assert.assertEquals("int_column", resultSetMetaData.getColumnName(2));
+        Assert.assertEquals("int_column", resultSetMetaData.getColumnLabel(2));
+        Assert.assertEquals("date_column_invalid", resultSetMetaData.getColumnName(6));
+        Assert.assertEquals(java.sql.Types.INTEGER, resultSetMetaData.getColumnType(2));
     }
 
     @Test
