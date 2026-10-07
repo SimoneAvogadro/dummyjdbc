@@ -4,8 +4,8 @@ Change Log
 Unreleased
 ----------------------------
 
- * Build: Java 8 target, AspectJ weaving with `dev.aspectj:aspectj-maven-plugin` (works on current JDKs) and a second
-   jar `dummyjdbc-<version>-with-dependencies.jar` bundling opencsv and the AspectJ runtime (relocated), ready for Boomi
+ * Build: Java 8 target and AspectJ weaving with `dev.aspectj:aspectj-maven-plugin` 1.14 / AspectJ 1.9.22.1 (works on
+   current JDKs); the runtime dependency `aspectjrt` moves to 1.9.22.1
  * Fixed: UPDATE without a `-- TESTCASE` comment was never captured; INSERT/UPDATE spanning several lines were not
    recognised; the `-- TESTCASE` name kept a trailing `\r` with CRLF line endings and swallowed the following lines of a
    multi-line query

@@ -82,8 +82,8 @@ implemented yet**. Each item says what is missing today and what a change would 
 
 * **Today:** the build targets Java 8 and works on current JDKs (AspectJ weaving via `dev.aspectj:aspectj-maven-plugin`).
   `logback-classic`/`logback-core` are still declared as normal dependencies, so they end up in the classpath of every
-  application using the driver, and the tracing aspect (`AspectLogger.aj`) requires the AspectJ runtime (bundled and
-  relocated in the `with-dependencies` jar).
+  application using the driver, and the tracing aspect (`AspectLogger.aj`) requires the AspectJ runtime (`aspectjrt`), one more jar
+  to install wherever the driver runs (e.g. Boomi).
 * **Idea:** move logback to the `test` scope, and decide whether the TRACE logging of every public method is still worth
   the AspectJ build step and runtime.
 

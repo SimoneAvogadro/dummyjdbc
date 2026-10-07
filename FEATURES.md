@@ -410,9 +410,14 @@ back by the process.
 
 ### Installation
 
-Use the jar `dummyjdbc-<version>-with-dependencies.jar` produced by `mvn package`: it already contains opencsv and the
-AspectJ runtime (relocated under `me.avogadro.dummyjdbc.shaded`, so they cannot clash with other copies). slf4j is not
-included because the Boomi runtime provides it. In the Database connection choose a custom driver with:
+Use the jar `dummyjdbc-<version>.jar` produced by `mvn package` and upload its runtime dependencies to Boomi as well:
+
+* `net.sf.opencsv:opencsv` 2.3;
+* `org.aspectj:aspectjrt` 1.9.22.1 (the driver classes are woven with the AspectJ tracing aspect and do not load
+  without it);
+* `org.slf4j:slf4j-api` only if the runtime does not already provide it (the Boomi runtime does).
+
+In the Database connection choose a custom driver with:
 
 * driver class `me.avogadro.dummyjdbc.DummyJdbcDriver`;
 * connection URL `any` (or `jdbc::mock::<dir>`, see [section 8](#8-several-databases-with-jdbc-urls)).
