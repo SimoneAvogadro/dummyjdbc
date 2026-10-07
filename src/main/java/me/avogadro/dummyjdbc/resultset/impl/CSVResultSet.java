@@ -11,6 +11,7 @@ import java.text.MessageFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -43,6 +44,12 @@ public class CSVResultSet extends DummyResultSet {
 	/** Number of the current row (1 = first), 0 before the first row and after the last one */
 	private int row = 0;
 
+	/** Maximum number of rows returned, 0 = no limit (see {@link java.sql.Statement#setMaxRows(int)}) */
+	private int maxRows = 0;
+
+	/** true once {@link #next()} returned false */
+	private boolean afterLast = false;
+
 	private final String tableName;
 
 	/**
@@ -64,14 +71,34 @@ public class CSVResultSet extends DummyResultSet {
 		this.resultIterator = dummyData.iterator();
 	}
 
+	/**
+	 * An empty result set with the given columns.
+	 *
+	 * @param name name of the result set (used as table name)
+	 * @param columns the column names
+	 * @return a result set without rows
+	 */
+	public static CSVResultSet empty(String name, String... columns) {
+		return new CSVResultSet(name, new DummyResultSetMetaData(name, columns),
+				Collections.<LinkedHashMap<String, String>>emptyList());
+	}
+
+	/**
+	 * @param maxRows maximum number of rows returned by {@link #next()}, 0 = no limit
+	 */
+	public void setMaxRows(int maxRows) {
+		this.maxRows = maxRows;
+	}
+
 	@Override
 	public boolean next() throws SQLException {
-		if (resultIterator.hasNext()) {
+		if (!afterLast && resultIterator.hasNext() && (maxRows <= 0 || row < maxRows)) {
 			currentEntry = resultIterator.next();
 			row++;
 			return true;
 		}
 
+		afterLast = true;
 		row = 0;
 		return false;
 	}

@@ -75,8 +75,7 @@ public class DummyDatabaseMetaData implements DatabaseMetaData {
     }
 
     private static ResultSet emptyResultSet(String name, String... columns) {
-        return new CSVResultSet(name, new DummyResultSetMetaData(name, columns),
-                Collections.<LinkedHashMap<String, String>>emptyList());
+        return CSVResultSet.empty(name, columns);
     }
 
     @Override public boolean allProceduresAreCallable() throws SQLException {

@@ -16,6 +16,7 @@ import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -65,6 +66,12 @@ public final class CsvStatement extends StatementAdapter {
      * Always null when invoked from {@link CsvStatement} and may hold values when used from {@link CsvPreparedStatement}
      */
     String paramsString = null;
+
+    /** see {@link #setMaxRows(int)}: 0 = no limit */
+    private int maxRows = 0;
+
+    /** SQL added with {@link #addBatch(String)} */
+    private final List<String> batch = new ArrayList<String>();
     
     
     /**
@@ -87,6 +94,58 @@ public final class CsvStatement extends StatementAdapter {
 	
 	@Override
 	public ResultSet executeQuery(String sql) throws SQLException {
+		ResultSet resultSet = query(sql);
+		if (maxRows > 0 && resultSet instanceof CSVResultSet) {
+			((CSVResultSet) resultSet).setMaxRows(maxRows);
+		}
+		return resultSet;
+	}
+
+	@Override
+	public void setMaxRows(int max) throws SQLException {
+		if (max < 0) {
+			throw new SQLException("maxRows must be >= 0: " + max);
+		}
+		this.maxRows = max;
+	}
+
+	@Override
+	public int getMaxRows() throws SQLException {
+		return maxRows;
+	}
+
+	/**
+	 * No key is ever generated: always an empty result set (never null, callers iterate it after an INSERT).
+	 */
+	@Override
+	public ResultSet getGeneratedKeys() throws SQLException {
+		return CSVResultSet.empty("generatedKeys", "GENERATED_KEY");
+	}
+
+	@Override
+	public void addBatch(String sql) throws SQLException {
+		batch.add(sql);
+	}
+
+	@Override
+	public void clearBatch() throws SQLException {
+		batch.clear();
+	}
+
+	@Override
+	public int[] executeBatch() throws SQLException {
+		int[] results = new int[batch.size()];
+		try {
+			for (int i = 0; i < results.length; i++) {
+				results[i] = executeUpdate(batch.get(i));
+			}
+		} finally {
+			batch.clear();
+		}
+		return results;
+	}
+
+	private ResultSet query(String sql) throws SQLException {
 
 		try {
 			String stepRes = DummyJdbcDriver.getInMemoryTableResourceForCurrentStep();

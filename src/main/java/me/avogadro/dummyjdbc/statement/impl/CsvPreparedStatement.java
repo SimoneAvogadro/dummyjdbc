@@ -7,6 +7,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -55,6 +57,9 @@ public class CsvPreparedStatement extends PreparedStatementAdapter {
 	private final String sql;
 
 	private ResultSet currentResultSet;
+
+	/** copies of the parameters added with {@link #addBatch()} */
+	private final List<Object[]> batch = new ArrayList<Object[]>();
 	
 	/**
 	 * Constructs a new {@link CsvPreparedStatement}.
@@ -287,6 +292,57 @@ public class CsvPreparedStatement extends PreparedStatementAdapter {
 	@Override
 	public ResultSet getResultSet() throws SQLException {
 		return currentResultSet;
+	}
+
+	@Override
+	public void setMaxRows(int max) throws SQLException {
+		statement.setMaxRows(max);
+	}
+
+	@Override
+	public int getMaxRows() throws SQLException {
+		return statement.getMaxRows();
+	}
+
+	@Override
+	public ResultSet getGeneratedKeys() throws SQLException {
+		return statement.getGeneratedKeys();
+	}
+
+	/**
+	 * Keeps a copy of the current parameters; {@link #executeBatch()} runs the statement once per copy.
+	 */
+	@Override
+	public void addBatch() throws SQLException {
+		batch.add(params.clone());
+	}
+
+	@Override
+	public void clearBatch() throws SQLException {
+		batch.clear();
+	}
+
+	/**
+	 * Runs {@link #executeUpdate()} once for every set of parameters added with {@link #addBatch()} (each run captures
+	 * its parameters as usual).
+	 */
+	@Override
+	public int[] executeBatch() throws SQLException {
+		int[] results = new int[batch.size()];
+		try {
+			for (int i = 0; i < results.length; i++) {
+				params = batch.get(i).clone();
+				results[i] = executeUpdate(sql);
+			}
+		} finally {
+			batch.clear();
+		}
+		return results;
+	}
+
+	@Override
+	public void clearParameters() throws SQLException {
+		params = new Object[MAX_PARAMS];
 	}
 	
 

@@ -206,6 +206,8 @@ Assert.assertEquals("hello,30", params);
 * The table name in `INSERT INTO <table> (` / `UPDATE <table>` / `DELETE FROM <table>` is matched with letters only (`[a-zA-Z]`),
   so names with digits or underscores are not captured by name – use a `-- TESTCASE:` comment for those.
 * Only the latest call is kept per name; read it right after the statement runs.
+* Batches (`addBatch()` + `executeBatch()`) run the statement once per parameter set, each run captured as above (so
+  the last set is the one you read); `executeBatch()` returns `1` per recognised statement, `0` otherwise.
 * A parameter that was not set is left empty (`{? = call my_proc(?)}` with only the second one set gives `,a`).
 
 ---
@@ -396,6 +398,8 @@ Tips:
 * Call `DummyJdbcDriver.reset()` in your `@Before` – the driver keeps **static** state (resources and step counter).
 * `DummyJdbcDriver.clearInMemoryTableResources()` clears only the in-memory data.
 * Not every JDBC method is implemented; unsupported ones throw `UnsupportedOperationException`.
+* `setMaxRows(n)` limits the rows returned by the next queries of the statement (0 = no limit).
+* No key is ever generated: `getGeneratedKeys()` returns an empty result set (never `null`).
 * `Connection.getMetaData()`: product and driver name are `DummyJDBC`, version `1.5`, the identifier quote string is a
   space (identifiers are never quoted). `getColumns(catalog, schema, table, columnPattern)` returns one row per column
   of the table's CSV header, with the table found exactly as for a query (in memory, Boomi property, file); a header-only

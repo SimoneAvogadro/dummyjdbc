@@ -19,6 +19,8 @@ Unreleased
    (were upper case, e.g. Boomi Database V2 documents had keys `ID`, `NAME` instead of `id`, `name`)
  * `DatabaseMetaData.getColumns` describes the columns of a table from its CSV header (resolved as for a query), so the
    Boomi Database V2 connector can bind parameters by type; new header types `|bigint`, `|decimal`, `|boolean`
+ * `getGeneratedKeys()` returns an empty result set (was null: every Boomi DB V2 insert failed), `addBatch()` /
+   `executeBatch()` run the statement once per parameter set ("Commit By Rows"), `setMaxRows()` is honoured
  * Driver version reported as 1.5 (was 1.0)
  * Boomi support through Dynamic Process Properties (detected at runtime via reflection, no dependency on Boomi):
    tables can be provided as `dummyjdbc_<name>` properties (name as written, then lower case) and captured
