@@ -42,9 +42,10 @@ public final class CsvStatement extends StatementAdapter {
 	private static final Logger LOGGER = LoggerFactory.getLogger(CsvStatement.class);
 
 	/**
-	 * Pattern used to recognize explicitly declared table names inside an heading comment
+	 * Pattern used to recognize explicitly declared table names inside an heading comment.
+	 * The name stops at the end of the first line (\n or \r\n), whatever follows on the next lines.
 	 */
-			static final Pattern COMMENT_HEADLINE_PATTERN = Pattern.compile("\\s*--\\s*TESTCASE:\\s*(.*)\\n.*", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+	private static final Pattern COMMENT_HEADLINE_PATTERN = Pattern.compile("\\s*--\\s*TESTCASE:[ \\t]*([^\\r\\n]*)\\r?\\n.*", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
 	
 	/** Pattern to get table name from an SQL statement. */
 	private static final Pattern TABLENAME_PATTERN = Pattern.compile(".*from\\s*(\\S*)\\s?.*", Pattern.CASE_INSENSITIVE | Pattern.DOTALL );
@@ -94,10 +95,9 @@ public final class CsvStatement extends StatementAdapter {
 			}
 						
 			// Try to check for a special heading comment within SQL
-			Matcher commentMatcher = COMMENT_HEADLINE_PATTERN.matcher(sql);
-			if (commentMatcher.matches()) {
-				String tableName = commentMatcher.group(1);
-				return createResultSet(tableName);
+			String testCase = matchTestCase(sql);
+			if (testCase != null) {
+				return createResultSet(testCase);
 			}
 			
 			// Try to interpret SQL as a SELECT on a table
@@ -127,6 +127,19 @@ public final class CsvStatement extends StatementAdapter {
 		}
 	}
 	
+	/**
+	 * @param sql the SQL text
+	 * @return the name declared by a heading <code>-- TESTCASE: name</code> comment (trimmed), or <code>null</code>
+	 */
+	static String matchTestCase(String sql) {
+		Matcher commentMatcher = COMMENT_HEADLINE_PATTERN.matcher(sql);
+		if (commentMatcher.matches()) {
+			String testCase = commentMatcher.group(1).trim();
+			return testCase.isEmpty() ? null : testCase;
+		}
+		return null;
+	}
+
 	static String matchTablename(String sql) {
 		Matcher tableMatcher = TABLENAME_PATTERN.matcher(sql);
 		if (tableMatcher.matches()) {

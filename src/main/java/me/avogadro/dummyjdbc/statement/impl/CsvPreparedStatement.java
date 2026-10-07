@@ -22,9 +22,11 @@ import me.avogadro.dummyjdbc.statement.PreparedStatementAdapter;
  */
 public class CsvPreparedStatement extends PreparedStatementAdapter {
 
-	private static final Pattern INSERT_INTO_PATTERN = Pattern.compile("(?:--[^\\n]*)?\\s*insert\\s*into\\s*([a-zA-Z]*)\\s*\\(.*", Pattern.CASE_INSENSITIVE|Pattern.MULTILINE);
+	/** INSERT INTO table ( ... possibly on several lines, optionally after a comment line */
+	private static final Pattern INSERT_INTO_PATTERN = Pattern.compile("(?:--[^\\n]*)?\\s*insert\\s*into\\s*([a-zA-Z]*)\\s*\\(.*", Pattern.CASE_INSENSITIVE|Pattern.DOTALL);
 
-	private static final Pattern UPDATE_TABLE_PATTERN = Pattern.compile("(?:--[^\\\\n]*)?\\s*update\\s*([a-zA-Z]*)\\s*", Pattern.CASE_INSENSITIVE|Pattern.MULTILINE);
+	/** UPDATE table ... possibly on several lines, optionally after a comment line; the name must be followed by whitespace */
+	private static final Pattern UPDATE_TABLE_PATTERN = Pattern.compile("(?:--[^\\n]*)?\\s*update\\s+([a-zA-Z]+)(?:\\s.*)?", Pattern.CASE_INSENSITIVE|Pattern.DOTALL);
 
 	/**
 	 * Suffix used for storing the parameters last seen when running a query
@@ -84,9 +86,9 @@ public class CsvPreparedStatement extends PreparedStatementAdapter {
 			}
 
 			// Try to check for a special heading comment within SQL
-			Matcher commentMatcher = CsvStatement.COMMENT_HEADLINE_PATTERN.matcher(sql);
-			if (commentMatcher.matches()) {
-				targetTable4Updates = commentMatcher.group(1);
+			String testCase = CsvStatement.matchTestCase(sql);
+			if (testCase != null) {
+				targetTable4Updates = testCase;
 				return res;
 			}
 			

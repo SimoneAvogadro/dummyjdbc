@@ -101,7 +101,8 @@ SELECT * FROM TableUsedEverywhere                  -- resource: hello1
 DummyJdbcDriver.addInMemoryTableResource("Hello1", "id, label\n1, first");
 ```
 
-The comment wins over the table name.
+The comment wins over the table name. The name is the rest of the first line, trimmed; the query can continue on as many
+lines as needed, with `\n` or `\r\n` line endings.
 
 ### c) Stored procedures
 
@@ -188,6 +189,7 @@ Assert.assertEquals("hello,30", params);
 ```
 
 * `executeUpdate` reports **1 affected row** when the table is recognised, `0` otherwise.
+* The statement can span several lines (`\n` or `\r\n`) and can start with a `--` comment line.
 * With an explicit `-- TESTCASE: name` comment the key is `name_PARAMS`.
 * The table name in `INSERT INTO <table> (` / `UPDATE <table>` is matched with letters only (`[a-zA-Z]`),
   so names with digits or underscores are not captured by name – use a `-- TESTCASE:` comment for those.
