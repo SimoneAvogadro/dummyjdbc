@@ -40,6 +40,9 @@ public class CSVResultSet extends DummyResultSet {
 	/** The current value of the iterator. */
 	private LinkedHashMap<String, String> currentEntry;
 
+	/** Number of the current row (1 = first), 0 before the first row and after the last one */
+	private int row = 0;
+
 	private final String tableName;
 
 	/**
@@ -65,10 +68,17 @@ public class CSVResultSet extends DummyResultSet {
 	public boolean next() throws SQLException {
 		if (resultIterator.hasNext()) {
 			currentEntry = resultIterator.next();
+			row++;
 			return true;
 		}
 
+		row = 0;
 		return false;
+	}
+
+	@Override
+	public int getRow() throws SQLException {
+		return row;
 	}
 
 	@Override
@@ -95,6 +105,71 @@ public class CSVResultSet extends DummyResultSet {
 		String value = getValueForColumnIndex(columnIndex, Integer.class);
 
 		return Integer.valueOf(value);
+	}
+
+	@Override
+	public long getLong(int columnIndex) throws SQLException {
+		String value = numberText(getValueForColumnIndex(columnIndex, Long.class));
+		return value.isEmpty() ? 0L : Long.parseLong(value);
+	}
+
+	@Override
+	public long getLong(String columnLabel) throws SQLException {
+		String value = numberText(getValueForColumnLabel(columnLabel, Long.class));
+		return value.isEmpty() ? 0L : Long.parseLong(value);
+	}
+
+	@Override
+	public short getShort(int columnIndex) throws SQLException {
+		String value = numberText(getValueForColumnIndex(columnIndex, Short.class));
+		return value.isEmpty() ? 0 : Short.parseShort(value);
+	}
+
+	@Override
+	public short getShort(String columnLabel) throws SQLException {
+		String value = numberText(getValueForColumnLabel(columnLabel, Short.class));
+		return value.isEmpty() ? 0 : Short.parseShort(value);
+	}
+
+	@Override
+	public byte getByte(int columnIndex) throws SQLException {
+		String value = numberText(getValueForColumnIndex(columnIndex, Byte.class));
+		return value.isEmpty() ? 0 : Byte.parseByte(value);
+	}
+
+	@Override
+	public byte getByte(String columnLabel) throws SQLException {
+		String value = numberText(getValueForColumnLabel(columnLabel, Byte.class));
+		return value.isEmpty() ? 0 : Byte.parseByte(value);
+	}
+
+	@Override
+	public double getDouble(int columnIndex) throws SQLException {
+		String value = numberText(getValueForColumnIndex(columnIndex, Double.class));
+		return value.isEmpty() ? 0d : Double.parseDouble(value);
+	}
+
+	@Override
+	public double getDouble(String columnLabel) throws SQLException {
+		String value = numberText(getValueForColumnLabel(columnLabel, Double.class));
+		return value.isEmpty() ? 0d : Double.parseDouble(value);
+	}
+
+	@Override
+	public float getFloat(int columnIndex) throws SQLException {
+		String value = numberText(getValueForColumnIndex(columnIndex, Float.class));
+		return value.isEmpty() ? 0f : Float.parseFloat(value);
+	}
+
+	@Override
+	public float getFloat(String columnLabel) throws SQLException {
+		String value = numberText(getValueForColumnLabel(columnLabel, Float.class));
+		return value.isEmpty() ? 0f : Float.parseFloat(value);
+	}
+
+	/** empty text is read as 0 by the numeric getters added for the Boomi Database V2 connector, like getBigDecimal */
+	private static String numberText(String value) {
+		return value == null ? "" : value.trim();
 	}
 
 	@Override

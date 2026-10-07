@@ -295,14 +295,15 @@ Every value is stored as text. What is accepted is decided by the getter your co
 | `getString` | anything | Returned trimmed. An empty value is `""`. |
 | `getInt` | optional sign and digits: `17`, `-17`, `+17` | `17.0`, `1,000`, `0x10`, empty text or values above `2147483647` throw `NumberFormatException`. |
 | `getBigDecimal` | decimal number: `123456789123456789`, `12.50`, `-0.5`, `.5`, `1.5E+3` | Empty text gives `0`. Text such as `abc` or `NULL` throws `NumberFormatException`. Use `.` as decimal point and no thousands separator (a comma would need quotes and is not accepted). |
+| `getLong`, `getShort`, `getByte` | optional sign and digits, within the range of the type | Empty text gives `0`. Decimals, separators or out-of-range values throw `NumberFormatException`. |
+| `getDouble`, `getFloat` | decimal number with `.` as decimal point: `12.5`, `-0.25`, `1.5E+3` | Empty text gives `0`. Invalid text throws `NumberFormatException`. |
 | `getBoolean` | `true` in any case (`true`, `TRUE`, `True`) | **Everything else is `false`**, including `1`, `yes`, `y` and empty text. |
 | `getDate` / `getTime` / `getTimestamp` | see [Dates and times](#dates-and-times) | |
 
 Getters by column label or by 1-based index behave the same.
 
-**Not supported yet.** The following getters exist but do not read the CSV: `getLong`, `getDouble`, `getFloat`, `getShort`,
-`getByte` always return `0`, `getObject` and `getBytes` return `null`, and `wasNull()` is always `false`. For numbers use
-`getInt` or `getBigDecimal` (e.g. `rs.getBigDecimal("price").doubleValue()`).
+**Not supported yet.** `getObject` and `getBytes` return `null`, and `wasNull()` is always `false`: use the typed
+getters. `getRow()` returns the number of the current row (1 for the first, 0 before the first and after the last).
 
 **There is no NULL.** The text `NULL` is just the string `"NULL"`, and an empty value is an empty string, so a database
 `NULL` cannot be represented.
