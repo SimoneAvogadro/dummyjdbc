@@ -6,6 +6,7 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.sql.Types;
 import java.text.DateFormat;
 import java.text.MessageFormat;
 import java.text.ParseException;
@@ -49,6 +50,9 @@ public class CSVResultSet extends DummyResultSet {
 
 	/** true once {@link #next()} returned false */
 	private boolean afterLast = false;
+
+	/** true if the last value read was SQL NULL (see {@link #wasNull()}) */
+	private boolean lastWasNull = false;
 
 	private final String tableName;
 
@@ -147,7 +151,7 @@ public class CSVResultSet extends DummyResultSet {
 	public int getInt(int columnIndex) throws SQLException {
 		String value = getValueForColumnIndex(columnIndex, Integer.class);
 
-		return Integer.valueOf(value);
+		return value == null ? 0 : Integer.valueOf(value);
 	}
 
 	@Override
@@ -219,6 +223,9 @@ public class CSVResultSet extends DummyResultSet {
 	public BigDecimal getBigDecimal(int columnIndex) throws SQLException {
 		String value = getValueForColumnIndex(columnIndex, BigDecimal.class);
 
+		if (value == null) {
+			return null;
+		}
 		if (value.isEmpty()) {
 			return BigDecimal.valueOf(0);
 		}
@@ -229,6 +236,9 @@ public class CSVResultSet extends DummyResultSet {
 	public BigDecimal getBigDecimal(String columnLabel) throws SQLException {
 		String string = getValueForColumnLabel(columnLabel, BigDecimal.class);
 
+		if (string == null) {
+			return null;
+		}
 		if (string.isEmpty()) {
 			return BigDecimal.valueOf(0);
 		}
@@ -252,7 +262,7 @@ public class CSVResultSet extends DummyResultSet {
 	public int getInt(String columnLabel) throws SQLException {
 		String string = getValueForColumnLabel(columnLabel, Integer.class);
 
-		return Integer.valueOf(string);
+		return string == null ? 0 : Integer.valueOf(string);
 	}
 
 	@Override
@@ -298,6 +308,9 @@ public class CSVResultSet extends DummyResultSet {
 	}
 
 	private Date parseDate(String string) throws SQLException {
+		if (string == null) {
+			return null;
+		}
 		DateFormat sdf = DummyJdbcDriver.THREAD_LOCAL_DATEFORMAT.get();
 		Date date = null;
 		try {
@@ -313,6 +326,9 @@ public class CSVResultSet extends DummyResultSet {
 	}
 	
 	private Time parseTime(String string) throws SQLException {
+		if (string == null) {
+			return null;
+		}
 		DateFormat sdf = DummyJdbcDriver.THREAD_LOCAL_TIMEFORMAT.get();
 		Time date = null;
 		try {
@@ -328,6 +344,9 @@ public class CSVResultSet extends DummyResultSet {
 	}
 	
 	private Timestamp parseTimestamp(String string) throws SQLException {
+		if (string == null) {
+			return null;
+		}
 		DateFormat sdf = DummyJdbcDriver.THREAD_LOCAL_TIMESTAMPFORMAT.get();
 		Timestamp date = null;
 		try {
@@ -342,7 +361,116 @@ public class CSVResultSet extends DummyResultSet {
 		return date;
 	}
 
+	/**
+	 * Value of a column of the current row, applying the NULL convention: an empty value of a column whose declared
+	 * type is not VARCHAR (e.g. <code>id|integer</code>) is SQL NULL and is returned as <code>null</code>.
+	 */
 	private String getValueForColumnIndex(int columnIndex, Class<?> clazz) throws SQLException {
+		return nullConvention(columnIndex, rawValueForColumnIndex(columnIndex, clazz));
+	}
+
+	private String getValueForColumnLabel(String columnLabel, Class<?> clazz) throws SQLException {
+		return nullConvention(columnIndexOf(columnLabel), rawValueForColumnLabel(columnLabel, clazz));
+	}
+
+	private String nullConvention(int columnIndex, String value) throws SQLException {
+		lastWasNull = value == null || (value.isEmpty() && columnType(columnIndex) != Types.VARCHAR);
+		return lastWasNull ? null : value;
+	}
+
+	/** declared type of a column (VARCHAR when unknown) */
+	private int columnType(int columnIndex) throws SQLException {
+		if (metaData == null || columnIndex < 1 || columnIndex > metaData.getColumnCount()) {
+			return Types.VARCHAR;
+		}
+		return metaData.getColumnType(columnIndex);
+	}
+
+	/** 1-based index of a column label (also "name|type"), or -1 */
+	private int columnIndexOf(String columnLabel) throws SQLException {
+		if (metaData == null || columnLabel == null) {
+			return -1;
+		}
+		String name = columnLabel;
+		int typeSeparator = name.indexOf('|');
+		if (typeSeparator >= 0) {
+			name = name.substring(0, typeSeparator);
+		}
+		name = name.trim();
+		for (int i = 1; i <= metaData.getColumnCount(); i++) {
+			if (metaData.getColumnName(i).equalsIgnoreCase(name)) {
+				return i;
+			}
+		}
+		return -1;
+	}
+
+	@Override
+	public boolean wasNull() throws SQLException {
+		return lastWasNull;
+	}
+
+	/**
+	 * The value converted to the Java type of the column declared in the header (<code>String</code> when no type is
+	 * declared); <code>null</code> for SQL NULL.
+	 */
+	@Override
+	public Object getObject(int columnIndex) throws SQLException {
+		return toObject(columnIndex, getValueForColumnIndex(columnIndex, Object.class));
+	}
+
+	@Override
+	public Object getObject(String columnLabel) throws SQLException {
+		return toObject(columnIndexOf(columnLabel), getValueForColumnLabel(columnLabel, Object.class));
+	}
+
+	@Override
+	public <T> T getObject(int columnIndex, Class<T> type) throws SQLException {
+		return convert(getObject(columnIndex), type);
+	}
+
+	@Override
+	public <T> T getObject(String columnLabel, Class<T> type) throws SQLException {
+		return convert(getObject(columnLabel), type);
+	}
+
+	private static <T> T convert(Object value, Class<T> type) throws SQLException {
+		if (value == null || type.isInstance(value)) {
+			return type.cast(value);
+		}
+		if (type == String.class) {
+			return type.cast(value.toString());
+		}
+		throw new SQLException("Cannot convert " + value.getClass().getName() + " to " + type.getName());
+	}
+
+	private Object toObject(int columnIndex, String value) throws SQLException {
+		if (value == null) {
+			return null;
+		}
+		switch (columnType(columnIndex)) {
+		case Types.INTEGER:
+			return Integer.valueOf(value.trim());
+		case Types.BIGINT:
+			return Long.valueOf(value.trim());
+		case Types.DOUBLE:
+			return Double.valueOf(value.trim());
+		case Types.DECIMAL:
+			return new BigDecimal(value.trim());
+		case Types.BOOLEAN:
+			return Boolean.valueOf(value.trim());
+		case Types.DATE:
+			return parseDate(value);
+		case Types.TIME:
+			return parseTime(value);
+		case Types.TIMESTAMP:
+			return parseTimestamp(value);
+		default:
+			return value;
+		}
+	}
+
+	private String rawValueForColumnIndex(int columnIndex, Class<?> clazz) throws SQLException {
 		String[] columns = currentEntry.keySet().toArray(new String[0]);
 
 		if (columnIndex > columns.length) {
@@ -357,7 +485,7 @@ public class CSVResultSet extends DummyResultSet {
 		return value;
 	}
 
-	private String getValueForColumnLabel(String columnLabel, Class<?> clazz) throws SQLException {
+	private String rawValueForColumnLabel(String columnLabel, Class<?> clazz) throws SQLException {
 		String key = columnLabel.toUpperCase();
 
 		// 1: exact match of the header as written (e.g. "ID|INTEGER" or "ID")

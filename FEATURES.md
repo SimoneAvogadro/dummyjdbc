@@ -288,6 +288,8 @@ string_value,  17,                 true,           123456789123456789, 17-MAY-12
 * **Separator is the comma** (`,`), always. A `;`-separated file is read as a single column.
 * Text with commas, line breaks or quotes goes between double quotes (`"Smith, John"`); a quote inside is doubled
   (`"say ""hi"""`).
+  Write an empty quoted value without a space after the comma (`a,""`): with a space (`a, ""`) it is read as a
+  single `"`.
 * **Whitespace around values is always removed**, also inside quotes: `"  x  "` is read as `x`.
 * Every row must have as many values as the header, otherwise an `IllegalArgumentException` is thrown.
 * A header-only CSV gives an empty result set (no rows).
@@ -312,7 +314,7 @@ Every value is stored as text. What is accepted is decided by the getter your co
 |--------|---------------|--------------------------------|
 | `getString` | anything | Returned trimmed. An empty value is `""`. |
 | `getInt` | optional sign and digits: `17`, `-17`, `+17` | `17.0`, `1,000`, `0x10`, empty text or values above `2147483647` throw `NumberFormatException`. |
-| `getBigDecimal` | decimal number: `123456789123456789`, `12.50`, `-0.5`, `.5`, `1.5E+3` | Empty text gives `0`. Text such as `abc` or `NULL` throws `NumberFormatException`. Use `.` as decimal point and no thousands separator (a comma would need quotes and is not accepted). |
+| `getBigDecimal` | decimal number: `123456789123456789`, `12.50`, `-0.5`, `.5`, `1.5E+3` | Empty text gives `0` (`null` in a typed column, see NULL values below). Text such as `abc` or `NULL` throws `NumberFormatException`. Use `.` as decimal point and no thousands separator (a comma would need quotes and is not accepted). |
 | `getLong`, `getShort`, `getByte` | optional sign and digits, within the range of the type | Empty text gives `0`. Decimals, separators or out-of-range values throw `NumberFormatException`. |
 | `getDouble`, `getFloat` | decimal number with `.` as decimal point: `12.5`, `-0.25`, `1.5E+3` | Empty text gives `0`. Invalid text throws `NumberFormatException`. |
 | `getBoolean` | `true` in any case (`true`, `TRUE`, `True`) | **Everything else is `false`**, including `1`, `yes`, `y` and empty text. |
@@ -320,12 +322,20 @@ Every value is stored as text. What is accepted is decided by the getter your co
 
 Getters by column label or by 1-based index behave the same.
 
-**Not supported yet.** `getObject` and `getBytes` return `null`, and `wasNull()` is always `false`: use the typed
-getters. `getRow()` returns the number of the current row (1 for the first, 0 before the first and after the last);
-`findColumn(name)` returns the 1-based index of a column (case insensitive).
+**NULL values.** An **empty value in a column whose declared type is not `varchar`** (for example `id|integer`,
+`price|double`, `day|date`) is SQL `NULL`: `getObject`, `getString`, `getBigDecimal` and the date getters return
+`null`, the primitive getters return `0` / `false`, and `wasNull()` returns `true`. In `varchar` columns, and in columns
+without a declared type, an empty value is the empty string `""` (and `wasNull()` is `false`), so `NULL` cannot be
+represented there. The text `NULL` is always just the string `"NULL"`. A quoted empty value (`""`) is the same as an
+empty one: the CSV reader does not tell them apart.
 
-**There is no NULL.** The text `NULL` is just the string `"NULL"`, and an empty value is an empty string, so a database
-`NULL` cannot be represented.
+**`getObject`** returns the value converted to the Java type of the declared column type: `Integer` (`integer`),
+`Long` (`bigint`), `Double` (`double`), `BigDecimal` (`decimal`), `Boolean` (`boolean`), `java.sql.Date` / `Time` /
+`Timestamp` (`date` / `time` / `timestamp`, parsed with the formats below) and `String` for `varchar` or no type.
+`getObject(column, Class)` accepts that class or `String.class`.
+
+**Other methods.** `getRow()` returns the number of the current row (1 for the first, 0 before the first and after the
+last); `findColumn(name)` returns the 1-based index of a column (case insensitive). `getBytes` returns `null`.
 
 ### Dates and times
 
