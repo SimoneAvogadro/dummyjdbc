@@ -48,20 +48,28 @@ implemented yet**. Each item says what is missing today and what a change would 
 
 ## Resources and connections
 
-### 6. Database directories loaded lazily
+### 6. CallableStatement (`Connection.prepareCall`)
+
+* **Today:** `prepareCall(...)` returns `null`, so code (or a Boomi "Stored Procedure" operation) that calls a
+  procedure through a `CallableStatement` fails. Stored procedures work only through `prepareStatement` /
+  `createStatement` with `EXEC`, `EXECUTE`, `CALL` or `{call ...}`.
+* **Idea:** return a `CallableStatement` built on `CsvPreparedStatement` (same lookup and parameter capture), with OUT
+  parameters registered and read back from the CSV result or from dedicated resources.
+
+### 7. Database directories loaded lazily
 
 * **Today:** for `jdbc::mock::<dir>` URLs the CSV files are read when `connect()` is called. After `reset()`, a connection
   that is already open no longer sees those tables (new connections reload them).
 * **Idea:** look up the directory on demand (or re-register it after `reset()`) so open connections keep working.
 
-### 7. Table-name detection for INSERT/UPDATE
+### 8. Table-name detection for INSERT/UPDATE/DELETE
 
 * **Today:** the table of an `INSERT INTO <table> (` / `UPDATE <table>` is matched with letters only (`[a-zA-Z]`), so names
   containing digits or underscores (`user_roles`, `table2`) are not captured under `<table>_PARAMS`; a `-- TESTCASE:` comment
   is needed.
 * **Idea:** accept `[A-Za-z0-9_$.]` (and schema-qualified names), with tests for each form.
 
-### 8. Precedence between files and in-memory resources
+### 9. Precedence between files and in-memory resources
 
 * **Today:** if both a registered file and an in-memory resource exist for the same name, the **file wins**
   (step resources always win over both).
@@ -70,7 +78,7 @@ implemented yet**. Each item says what is missing today and what a change would 
 
 ## Build
 
-### 9. Logging dependencies and the AspectJ tracing aspect
+### 10. Logging dependencies and the AspectJ tracing aspect
 
 * **Today:** the build targets Java 8 and works on current JDKs (AspectJ weaving via `dev.aspectj:aspectj-maven-plugin`).
   `logback-classic`/`logback-core` are still declared as normal dependencies, so they end up in the classpath of every
@@ -81,7 +89,7 @@ implemented yet**. Each item says what is missing today and what a change would 
 
 ## Documentation
 
-### 10. Slimmer README
+### 11. Slimmer README
 
 * **Today:** the README links to `FEATURES.md`, but its older sections ("New Methods in 1.4.0", "1.5.0", sample usage)
   partly duplicate it, and it still refers to the old Maven coordinates and the upstream wiki.

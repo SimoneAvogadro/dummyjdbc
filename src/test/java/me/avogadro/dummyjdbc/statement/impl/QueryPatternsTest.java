@@ -108,4 +108,114 @@ public final class QueryPatternsTest {
 
 		Assert.assertEquals("Rome", DummyJdbcDriver.getInMemoryTableResource("T_015_PARAMS"));
 	}
+
+	@Test
+	public void testSelectWithTestCaseDoesNotCaptureParameters() throws SQLException {
+		DummyJdbcDriver.addInMemoryTableResource("T_014a", "name\nJohn");
+
+		PreparedStatement statement = connection.prepareStatement("-- TESTCASE: T_014a\r\nSELECT * FROM x WHERE id = ?");
+		statement.setInt(1, 42);
+		ResultSet resultSet = statement.executeQuery();
+
+		Assert.assertTrue(resultSet.next());
+		Assert.assertNull(DummyJdbcDriver.getInMemoryTableResource("T_014a_PARAMS"));
+	}
+
+	@Test
+	public void testSelectAfterCommentDoesNotCaptureParameters() throws SQLException {
+		PreparedStatement statement = connection.prepareStatement("-- a comment\n  select name\nfrom users where id = ?");
+		statement.setInt(1, 42);
+		Assert.assertTrue(statement.execute());
+
+		Assert.assertNull(DummyJdbcDriver.getInMemoryTableResource("users_PARAMS"));
+	}
+
+	@Test
+	public void testStepBasedSelectDoesNotCaptureParameters() throws SQLException {
+		DummyJdbcDriver.addInMemoryTableResource(0, "name\nJohn");
+
+		PreparedStatement statement = connection.prepareStatement("SELECT * FROM users WHERE id = ?");
+		statement.setInt(1, 42);
+		statement.executeQuery();
+
+		Assert.assertNull(DummyJdbcDriver.getInMemoryTableResource(DummyJdbcDriver.STEP_PREFIX + "0_PARAMS"));
+	}
+
+	@Test
+	public void testStepBasedUpdateCapturesParameters() throws SQLException {
+		DummyJdbcDriver.addInMemoryTableResource(0, "3");
+
+		PreparedStatement statement = connection.prepareStatement("UPDATE users SET name = ?");
+		statement.setString(1, "bob");
+
+		Assert.assertEquals(3, statement.executeUpdate());
+		Assert.assertEquals("bob", DummyJdbcDriver.getInMemoryTableResource(DummyJdbcDriver.STEP_PREFIX + "0_PARAMS"));
+	}
+
+	@Test
+	public void testExecStoredProcedureCapturesParametersAndReturnsItsResult() throws SQLException {
+		DummyJdbcDriver.addInMemoryTableResource("my_proc", "result\nok");
+
+		PreparedStatement statement = connection.prepareStatement("EXEC my_proc ?, ?");
+		statement.setString(1, "a");
+		statement.setInt(2, 1);
+		ResultSet resultSet = statement.executeQuery();
+
+		Assert.assertTrue(resultSet.next());
+		Assert.assertEquals("ok", resultSet.getString("result"));
+		Assert.assertEquals("a,1", DummyJdbcDriver.getInMemoryTableResource("my_proc_PARAMS"));
+	}
+
+	@Test
+	public void testExecuteStoredProcedureOnSeveralLinesAfterAComment() throws SQLException {
+		PreparedStatement statement = connection.prepareStatement("-- run it\r\nEXECUTE dbo.my_proc\r\n  @a = ?");
+		statement.setString(1, "a");
+		statement.execute();
+
+		Assert.assertEquals("a", DummyJdbcDriver.getInMemoryTableResource("dbo.my_proc_PARAMS"));
+	}
+
+	@Test
+	public void testCallStoredProcedureCapturesParameters() throws SQLException {
+		PreparedStatement statement = connection.prepareStatement("CALL my_proc(?, ?)");
+		statement.setString(1, "a");
+		statement.setInt(2, 1);
+		statement.execute();
+
+		Assert.assertEquals("a,1", DummyJdbcDriver.getInMemoryTableResource("my_proc_PARAMS"));
+	}
+
+	@Test
+	public void testJdbcEscapeCallCapturesParameters() throws SQLException {
+		PreparedStatement statement = connection.prepareStatement("{ ? = call my_proc(?) }");
+		statement.setString(2, "a");
+		statement.execute();
+
+		Assert.assertEquals(",a", DummyJdbcDriver.getInMemoryTableResource("my_proc_PARAMS"));
+	}
+
+	@Test
+	public void testCallStoredProcedureReturnsItsResult() throws SQLException {
+		DummyJdbcDriver.addInMemoryTableResource("my_proc", "result\nok");
+
+		ResultSet call = connection.prepareStatement("CALL my_proc(?)").executeQuery();
+		ResultSet escape = connection.prepareStatement("{call my_proc(?)}").executeQuery();
+		ResultSet multiLine = connection.prepareStatement("EXECUTE my_proc\r\n  @a = ?").executeQuery();
+
+		Assert.assertTrue(call.next());
+		Assert.assertEquals("ok", call.getString("result"));
+		Assert.assertTrue(escape.next());
+		Assert.assertEquals("ok", escape.getString("result"));
+		Assert.assertTrue(multiLine.next());
+		Assert.assertEquals("ok", multiLine.getString("result"));
+	}
+
+	@Test
+	public void testDeleteCapturesParameters() throws SQLException {
+		PreparedStatement statement = connection.prepareStatement("DELETE FROM users\nWHERE id = ?");
+		statement.setInt(1, 42);
+
+		Assert.assertEquals(1, statement.executeUpdate());
+		Assert.assertEquals("42", DummyJdbcDriver.getInMemoryTableResource("users_PARAMS"));
+	}
 }

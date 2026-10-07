@@ -11,6 +11,9 @@ Unreleased
    multi-line query
  * Fixed: `DatabaseMetaData` returned `null` from many methods (NullPointerException in the Boomi Database V2 connector);
    now descriptive values and empty result sets with the standard JDBC columns
+ * Parameters are captured for every prepared statement except SELECTs: also DELETE and stored procedure calls
+   (`EXEC`, `EXECUTE`, `CALL`, `{call ...}`); SELECTs with a TESTCASE comment or on a step no longer write `_PARAMS`
+ * Stored procedure results are also found for `CALL my_proc(...)`, `{call my_proc(...)}` and calls on several lines
  * `getLong`, `getShort`, `getByte`, `getDouble`, `getFloat` and `getRow()` are implemented for CSV result sets
  * Driver version reported as 1.5 (was 1.0)
  * Boomi support through Dynamic Process Properties (detected at runtime via reflection, no dependency on Boomi):

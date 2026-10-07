@@ -53,6 +53,9 @@ public final class CsvStatement extends StatementAdapter {
 	/** Pattern to get the name of a stored procedure from an SQL statement. */
 	private static final Pattern STORED_PROCEDURE_PATTERN = Pattern.compile(".*(EXEC|EXECUTE) (\\S*)\\s?.*",	Pattern.CASE_INSENSITIVE);
 
+	/** Stored procedure call: EXEC/EXECUTE/CALL name ... or the JDBC escape {[? =] call name(...)}, after optional comment lines */
+	private static final Pattern STORED_PROCEDURE_CALL_PATTERN = Pattern.compile("(?:\\s*--[^\\n]*\\n)*\\s*\\{?\\s*(?:\\?\\s*=\\s*)?(?:exec|execute|call)\\s+([^\\s(){};,]+).*", Pattern.CASE_INSENSITIVE|Pattern.DOTALL);
+
 	private static final Pattern PURE_SELECT_PATTERN = Pattern.compile("select .*", Pattern.CASE_INSENSITIVE);
 
     private final Map<String, File> tableResources;
@@ -114,6 +117,12 @@ public final class CsvStatement extends StatementAdapter {
 				return createResultSet(storedProcedureName);
 			}
 
+			// Try to interpret SQL as a stored procedure call in the other forms (CALL, {call ...}, several lines)
+			String procedure = matchStoredProcedureCall(sql);
+			if (procedure != null) {
+				return createResultSet(procedure);
+			}
+
 	        //  Try  to  interpret  SQL  as  a  pure  select
 			Matcher  pureSelectMatcher  =  PURE_SELECT_PATTERN.matcher(sql);
 			if  (pureSelectMatcher.matches())  {
@@ -138,6 +147,15 @@ public final class CsvStatement extends StatementAdapter {
 			return testCase.isEmpty() ? null : testCase;
 		}
 		return null;
+	}
+
+	/**
+	 * @param sql the SQL text
+	 * @return the name of the stored procedure called with EXEC, EXECUTE, CALL or <code>{call ...}</code>, or <code>null</code>
+	 */
+	static String matchStoredProcedureCall(String sql) {
+		Matcher procedureMatcher = STORED_PROCEDURE_CALL_PATTERN.matcher(sql);
+		return procedureMatcher.matches() ? procedureMatcher.group(1) : null;
 	}
 
 	static String matchTablename(String sql) {

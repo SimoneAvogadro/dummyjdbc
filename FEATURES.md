@@ -13,7 +13,7 @@ This guide starts from the simplest case and builds up.
 3. [How a query finds its dataset](#3-how-a-query-finds-its-dataset)
 4. [Different results for different parameters](#4-different-results-for-different-parameters)
 5. [Step-based results (a scripted sequence)](#5-step-based-results-a-scripted-sequence)
-6. [Capturing INSERT / UPDATE parameters](#6-capturing-insert--update-parameters)
+6. [Capturing statement parameters](#6-capturing-statement-parameters)
 7. [Datasets on file](#7-datasets-on-file)
 8. [Several "databases" with JDBC URLs](#8-several-databases-with-jdbc-urls)
 9. [CSV format reference](#9-csv-format-reference)
@@ -106,8 +106,9 @@ lines as needed, with `\n` or `\r\n` line endings.
 
 ### c) Stored procedures
 
-`EXEC my_proc ...` / `EXECUTE my_proc ...` resolves to the resource `my_proc`, so stored-procedure
-results can be mocked the same way as tables.
+`EXEC my_proc ...`, `EXECUTE my_proc ...`, `CALL my_proc(...)` and the JDBC escape `{call my_proc(...)}` (also
+`{? = call my_proc(...)}`) resolve to the resource `my_proc`, so stored-procedure results can be mocked the same way
+as tables. The call can span several lines.
 
 ### Fallbacks
 
@@ -171,11 +172,22 @@ ResultSet third  = c.createStatement().executeQuery("anything");    // step 2 ->
 
 ---
 
-## 6. Capturing INSERT / UPDATE parameters
+## 6. Capturing statement parameters
 
-To verify that your application wrote the right data, the driver records the parameters of
-every `INSERT INTO ...` / `UPDATE ...` as a comma-separated string, under the name
-`<table>_PARAMS`:
+To verify that your application wrote the right data or called the right procedure, the driver records the parameters
+of every prepared statement **except SELECTs** as a comma-separated string, under the name `<name>_PARAMS`:
+
+| Statement | Captured as |
+|-----------|-------------|
+| `INSERT INTO users (...) VALUES (?, ?)` | `users_PARAMS` |
+| `UPDATE users SET ...` | `users_PARAMS` |
+| `DELETE FROM users WHERE ...` | `users_PARAMS` |
+| `EXEC my_proc ?, ?`, `EXECUTE my_proc ...`, `CALL my_proc(?)`, `{call my_proc(?)}` | `my_proc_PARAMS` |
+| any statement but a SELECT with a `-- TESTCASE: name` comment | `name_PARAMS` |
+| any statement but a SELECT run on a step resource ([section 5](#5-step-based-results-a-scripted-sequence)) | `##STEP<n>_PARAMS` |
+
+The parameters of a `SELECT` (also after `--` comment lines, with a TESTCASE comment or on a step) are **never**
+captured: they only choose the data to return (see [section 4](#4-different-results-for-different-parameters)).
 
 ```java
 PreparedStatement ps = connection.prepareStatement(
@@ -191,9 +203,10 @@ Assert.assertEquals("hello,30", params);
 * `executeUpdate` reports **1 affected row** when the table is recognised, `0` otherwise.
 * The statement can span several lines (`\n` or `\r\n`) and can start with a `--` comment line.
 * With an explicit `-- TESTCASE: name` comment the key is `name_PARAMS`.
-* The table name in `INSERT INTO <table> (` / `UPDATE <table>` is matched with letters only (`[a-zA-Z]`),
+* The table name in `INSERT INTO <table> (` / `UPDATE <table>` / `DELETE FROM <table>` is matched with letters only (`[a-zA-Z]`),
   so names with digits or underscores are not captured by name – use a `-- TESTCASE:` comment for those.
-* Only the latest call is kept per table; read it right after the statement runs.
+* Only the latest call is kept per name; read it right after the statement runs.
+* A parameter that was not set is left empty (`{? = call my_proc(?)}` with only the second one set gives `,a`).
 
 ---
 
@@ -392,7 +405,7 @@ Tips:
 ## 11. Running inside Boomi
 
 When the driver runs inside a Boomi runtime (Atom, Molecule, Atom Cloud) it can exchange data with the process through
-**Dynamic Process Properties**: tables can be provided by the process, and captured INSERT/UPDATE parameters can be read
+**Dynamic Process Properties**: tables can be provided by the process, and captured statement parameters can be read
 back by the process.
 
 ### Installation
@@ -440,13 +453,14 @@ The first one that is set and not blank is used.
 
 When **writing** captured parameters the driver sets two properties with the same value: the table (or test case) as
 written in the SQL followed by `_PARAMS` in upper case, exactly like the in-memory resource of
-[section 6](#6-capturing-insert--update-parameters), and the same name in lower case:
+[section 6](#6-capturing-statement-parameters), and the same name in lower case:
 
 | Statement | Dynamic Process Properties (written) |
 |-----------|--------------------------------------|
 | `INSERT INTO users (...)` | `dummyjdbc_users_PARAMS` and `dummyjdbc_users_params` |
 | `UPDATE Users SET ...` | `dummyjdbc_Users_PARAMS` and `dummyjdbc_users_params` |
-| `-- TESTCASE: T_014a` + INSERT/UPDATE | `dummyjdbc_T_014a_PARAMS` and `dummyjdbc_t_014a_params` |
+| `-- TESTCASE: T_014a` + any statement but a SELECT | `dummyjdbc_T_014a_PARAMS` and `dummyjdbc_t_014a_params` |
+| `EXEC My_Proc ?` | `dummyjdbc_My_Proc_PARAMS` and `dummyjdbc_my_proc_params` |
 
 > **Suggested when working with Boomi: write every property name in lower case** (`dummyjdbc_users`,
 > `dummyjdbc_t_014a`, `dummyjdbc_users_params`). The lower case name is always read and always written, whatever case
@@ -473,7 +487,7 @@ A later `SELECT * FROM users` run through a Database connector that uses dummyjd
 
 ### Reading captured parameters in the process
 
-Every time the driver captures the parameters of an INSERT/UPDATE ([section 6](#6-capturing-insert--update-parameters))
+Every time the driver captures the parameters of a statement ([section 6](#6-capturing-statement-parameters))
 it also stores them in a Dynamic Process Property, **never persisted** across executions (`persist=false`):
 
 ```groovy
@@ -493,7 +507,7 @@ as before.
 | `addInMemoryTableResource(String name, InputStream csv)` | Same, reading the CSV from a stream |
 | `addInMemoryTableResource(int step, String csv)` | Register the result of the *n*-th statement |
 | `addInMemoryTableResource(int step, InputStream csv)` | Same, from a stream |
-| `getInMemoryTableResource(String name)` | Read a resource, e.g. `<table>_PARAMS` after an INSERT/UPDATE |
+| `getInMemoryTableResource(String name)` | Read a resource, e.g. `<table>_PARAMS` after an INSERT/UPDATE/DELETE or `<proc>_PARAMS` after a procedure call |
 | `getInMemoryTableResourceForCurrentStep()` | Read the resource of the current step |
 | `addTableResource(String table, File csv)` | Register a CSV file for a table |
 | `clearInMemoryTableResources()` | Remove all in-memory datasets |

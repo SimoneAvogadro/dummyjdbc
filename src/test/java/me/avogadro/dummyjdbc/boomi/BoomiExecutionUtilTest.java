@@ -191,4 +191,29 @@ public final class BoomiExecutionUtilTest {
 		Assert.assertTrue(FakeExecutionUtil.PROPERTIES.isEmpty());
 		Assert.assertEquals("hello,30", DummyJdbcDriver.getInMemoryTableResource("users_PARAMS"));
 	}
+
+	@Test
+	public void testSelectSetsNoProperty() throws Exception {
+		BoomiExecutionUtil.lookup(FakeExecutionUtil.class.getName());
+		FakeExecutionUtil.PROPERTIES.put("dummyjdbc_t_014a", "name\nJohn");
+
+		PreparedStatement statement = DriverManager.getConnection("any")
+				.prepareStatement("-- TESTCASE: T_014a\nSELECT * FROM users WHERE id = ?");
+		statement.setInt(1, 42);
+		statement.executeQuery();
+
+		Assert.assertEquals(1, FakeExecutionUtil.PROPERTIES.size());
+	}
+
+	@Test
+	public void testStoredProcedureParamsAreSetAsProperties() throws Exception {
+		BoomiExecutionUtil.lookup(FakeExecutionUtil.class.getName());
+
+		PreparedStatement statement = DriverManager.getConnection("any").prepareStatement("EXEC My_Proc ?");
+		statement.setString(1, "a");
+		statement.execute();
+
+		Assert.assertEquals("a", FakeExecutionUtil.PROPERTIES.get("dummyjdbc_My_Proc_PARAMS"));
+		Assert.assertEquals("a", FakeExecutionUtil.PROPERTIES.get("dummyjdbc_my_proc_params"));
+	}
 }

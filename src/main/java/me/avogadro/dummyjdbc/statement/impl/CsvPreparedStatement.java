@@ -28,6 +28,12 @@ public class CsvPreparedStatement extends PreparedStatementAdapter {
 	/** UPDATE table ... possibly on several lines, optionally after a comment line; the name must be followed by whitespace */
 	private static final Pattern UPDATE_TABLE_PATTERN = Pattern.compile("(?:--[^\\n]*)?\\s*update\\s+([a-zA-Z]+)(?:\\s.*)?", Pattern.CASE_INSENSITIVE|Pattern.DOTALL);
 
+	/** DELETE [FROM] table ... possibly on several lines, optionally after a comment line */
+	private static final Pattern DELETE_TABLE_PATTERN = Pattern.compile("(?:--[^\\n]*)?\\s*delete\\s+(?:from\\s+)?([a-zA-Z]+)(?:\\s.*)?", Pattern.CASE_INSENSITIVE|Pattern.DOTALL);
+
+	/** SELECT statement, after optional comment lines: its parameters are not captured */
+	private static final Pattern SELECT_PATTERN = Pattern.compile("(?:\\s*--[^\\n]*\\n)*[\\s(]*select\\b.*", Pattern.CASE_INSENSITIVE|Pattern.DOTALL);
+
 	/**
 	 * Suffix used for storing the parameters last seen when running a query
 	 */
@@ -65,12 +71,15 @@ public class CsvPreparedStatement extends PreparedStatementAdapter {
 	
 	/**
 	 * Always reply that 1 row was affected (most common case) if we can identify the target table name
-	 * otherwise return 0
+	 * otherwise return 0.
+	 * The parameters are captured as <code>&lt;name&gt;_PARAMS</code> for every statement except SELECTs
+	 * (INSERT, UPDATE, DELETE, stored procedure calls, statements with a TESTCASE comment or a step resource).
 	 */
 	@Override
 	public int executeUpdate(String sql) throws SQLException {
 
 		targetTable4Updates = null;
+		final boolean isSelect = SELECT_PATTERN.matcher(sql).matches();
 		try {
 			int res = 1;
 			String stepRes = DummyJdbcDriver.getInMemoryTableResourceForCurrentStep();
@@ -105,11 +114,24 @@ public class CsvPreparedStatement extends PreparedStatementAdapter {
 				targetTable4Updates = updateMatcher.group(1);
 				return res;
 			}
-	
+
+			Matcher deleteMatcher = DELETE_TABLE_PATTERN.matcher(sql);
+			if (deleteMatcher.matches()) {
+				targetTable4Updates = deleteMatcher.group(1);
+				return res;
+			}
+
+			String procedure = CsvStatement.matchStoredProcedureCall(sql);
+			if (procedure != null) {
+				targetTable4Updates = procedure;
+				return res;
+			}
+
 			return 0;
 		
 		} finally {
-			if (targetTable4Updates!=null) {
+			// the parameters of a SELECT are not captured: they only select data
+			if (targetTable4Updates!=null && !isSelect) {
 				String paramsResource = targetTable4Updates+PARAMS_SUFFIX;
 				String paramsValue = buildParamsString();
 				DummyJdbcDriver.addInMemoryTableResource( paramsResource, paramsValue );
