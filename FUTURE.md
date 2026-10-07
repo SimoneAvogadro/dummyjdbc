@@ -70,12 +70,14 @@ implemented yet**. Each item says what is missing today and what a change would 
 
 ## Build
 
-### 9. Modern Java and Maven build
+### 9. Logging dependencies and the AspectJ tracing aspect
 
-* **Today:** `pom.xml` targets Java 7 (source/target 1.7), which current JDKs refuse to compile, and the build needs
-  `aspectj-maven-plugin`, which is not available in offline environments.
-* **Idea:** raise the source/target level (Java 8+), update the plugins, and check whether the AspectJ logging aspect
-  (`AspectLogger.aj`) is still worth keeping.
+* **Today:** the build targets Java 8 and works on current JDKs (AspectJ weaving via `dev.aspectj:aspectj-maven-plugin`).
+  `logback-classic`/`logback-core` are still declared as normal dependencies, so they end up in the classpath of every
+  application using the driver, and the tracing aspect (`AspectLogger.aj`) requires the AspectJ runtime (bundled and
+  relocated in the `with-dependencies` jar).
+* **Idea:** move logback to the `test` scope, and decide whether the TRACE logging of every public method is still worth
+  the AspectJ build step and runtime.
 
 ## Documentation
 

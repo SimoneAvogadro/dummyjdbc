@@ -395,6 +395,18 @@ When the driver runs inside a Boomi runtime (Atom, Molecule, Atom Cloud) it can 
 **Dynamic Process Properties**: tables can be provided by the process, and captured INSERT/UPDATE parameters can be read
 back by the process.
 
+### Installation
+
+Use the jar `dummyjdbc-<version>-with-dependencies.jar` produced by `mvn package`: it already contains opencsv and the
+AspectJ runtime (relocated under `me.avogadro.dummyjdbc.shaded`, so they cannot clash with other copies). slf4j is not
+included because the Boomi runtime provides it. In the Database connection choose a custom driver with:
+
+* driver class `me.avogadro.dummyjdbc.DummyJdbcDriver`;
+* connection URL `any` (or `jdbc::mock::<dir>`, see [section 8](#8-several-databases-with-jdbc-urls)).
+
+The Database V2 connector reads the connection metadata before running queries; dummyjdbc answers with a database
+without schema (see [section 10](#10-resolution-order-and-good-to-know)), so the queries are run as written.
+
 ### Detection
 
 The driver looks for the Boomi class `com.boomi.execution.ExecutionUtil` on the classpath when it is first needed.

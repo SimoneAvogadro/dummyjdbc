@@ -4,6 +4,15 @@ Change Log
 Unreleased
 ----------------------------
 
+ * Build: Java 8 target, AspectJ weaving with `dev.aspectj:aspectj-maven-plugin` (works on current JDKs) and a second
+   jar `dummyjdbc-<version>-with-dependencies.jar` bundling opencsv and the AspectJ runtime (relocated), ready for Boomi
+ * Fixed: UPDATE without a `-- TESTCASE` comment was never captured; INSERT/UPDATE spanning several lines were not
+   recognised; the `-- TESTCASE` name kept a trailing `\r` with CRLF line endings and swallowed the following lines of a
+   multi-line query
+ * Fixed: `DatabaseMetaData` returned `null` from many methods (NullPointerException in the Boomi Database V2 connector);
+   now descriptive values and empty result sets with the standard JDBC columns
+ * `getLong`, `getShort`, `getByte`, `getDouble`, `getFloat` and `getRow()` are implemented for CSV result sets
+ * Driver version reported as 1.5 (was 1.0)
  * Boomi support through Dynamic Process Properties (detected at runtime via reflection, no dependency on Boomi):
    tables can be provided as `dummyjdbc_<name>` properties (name as written, then lower case) and captured
    INSERT/UPDATE parameters are exposed as `dummyjdbc_<table>_PARAMS` and `dummyjdbc_<table in lower case>_params`
