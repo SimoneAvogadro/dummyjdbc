@@ -296,9 +296,10 @@ string_value,  17,                 true,           123456789123456789, 17-MAY-12
 
 ### Column names and types
 
-The header can optionally declare a type with `name|type`: `varchar` (default), `integer`, `double`, `date`, `time`,
-`timestamp`. The type is only exposed through `ResultSetMetaData` (`getColumnType`, `getColumnTypeName`,
-`getColumnClassName`, ...); it does **not** change how values are parsed. A typed column can be read by its plain name
+The header can optionally declare a type with `name|type`: `varchar` (default), `integer`, `bigint`, `double`,
+`decimal`, `boolean`, `date`, `time`, `timestamp`. The type is only exposed through `ResultSetMetaData`
+(`getColumnType`, `getColumnTypeName`, `getColumnClassName`, ...) and `DatabaseMetaData.getColumns`; it does **not**
+change how values are parsed. A typed column can be read by its plain name
 (`rs.getInt("id")` for a header `id|integer`); the full header text (`"id|integer"`) works too.
 
 ### Values per data type
@@ -395,10 +396,13 @@ Tips:
 * Call `DummyJdbcDriver.reset()` in your `@Before` – the driver keeps **static** state (resources and step counter).
 * `DummyJdbcDriver.clearInMemoryTableResources()` clears only the in-memory data.
 * Not every JDBC method is implemented; unsupported ones throw `UnsupportedOperationException`.
-* `Connection.getMetaData()` describes a database without schema: product and driver name are `DummyJDBC`, version
-  `1.5`, the identifier quote string is a space (identifiers are never quoted), and every method returning a `ResultSet`
-  (`getTables`, `getColumns`, `getPrimaryKeys`, ...) returns an empty one with the standard JDBC columns. No method
-  returns `null`, so tools that inspect the metadata before running a query (e.g. the Boomi Database V2 connector) work.
+* `Connection.getMetaData()`: product and driver name are `DummyJDBC`, version `1.5`, the identifier quote string is a
+  space (identifiers are never quoted). `getColumns(catalog, schema, table, columnPattern)` returns one row per column
+  of the table's CSV header, with the table found exactly as for a query (in memory, Boomi property, file); a header-only
+  CSV is enough. `DATA_TYPE`/`TYPE_NAME` come from the `|type` of the header (`VARCHAR` when none), `DECIMAL_DIGITS` is
+  10 for `double`/`decimal` and 0 otherwise, `IS_AUTOINCREMENT` is `NO`. Every other method returning a `ResultSet`
+  (`getTables`, `getPrimaryKeys`, ...) returns an empty one with the standard JDBC columns. No method returns `null`,
+  so tools that inspect the metadata before running a query (e.g. the Boomi Database V2 connector) work.
 * **Character encoding:** in-memory CSV strings are used as they are, so any Unicode text works regardless of the VM settings.
   CSV **files** (and `InputStream`s) are read with the default charset of the VM; make sure your files match it.
 
@@ -424,8 +428,15 @@ In the Database connection choose a custom driver with:
 * driver class `me.avogadro.dummyjdbc.DummyJdbcDriver`;
 * connection URL `any` (or `jdbc::mock::<dir>`, see [section 8](#8-several-databases-with-jdbc-urls)).
 
-The Database V2 connector reads the connection metadata before running queries; dummyjdbc answers with a database
-without schema (see [section 10](#10-resolution-order-and-good-to-know)), so the queries are run as written.
+The Database V2 connector reads the connection metadata before running queries
+(see [section 10](#10-resolution-order-and-good-to-know)). For the operations it builds from the table definition
+(Standard Get/Insert/Update/Delete, Dynamic Get/Insert, ...) it asks `getColumns` for the table and binds each parameter
+according to the column type, so:
+
+* **define every table the connector writes to or filters on**, even with the header only, e.g. the property
+  `dummyjdbc_payments` = `id|integer, amount|double, note` (use the `|type` to get numbers bound as numbers);
+* **every field of the input document must be a column of that header**: once the column types are known the connector
+  fails (NullPointerException) on a field that has no matching column.
 
 ### Detection
 

@@ -168,6 +168,23 @@ public final class CsvStatement extends StatementAdapter {
 	}
 
 	private ResultSet createResultSet(String tableName) {
+		return createResultSet(tableResources, tableName, paramsString);
+	}
+
+	/**
+	 * Loads a table exactly as a <code>SELECT * FROM tableName</code> would, without running a statement (the step
+	 * counter is not touched): in-memory resource (or Boomi Dynamic Process Property), registered file, or
+	 * <code>/tables/&lt;name&gt;.csv</code>.
+	 *
+	 * @param tableResources {@link Map} of table name to CSV file of the connection
+	 * @param tableName the table name
+	 * @return a {@link CSVResultSet}, or an empty {@link DummyResultSet} if the table is not defined
+	 */
+	public static ResultSet loadTable(Map<String, File> tableResources, String tableName) {
+		return createResultSet(tableResources, tableName, null);
+	}
+
+	private static ResultSet createResultSet(Map<String, File> tableResources, String tableName, String paramsString) {
 		Reader inMemoryReader = null;
 		String inMemoryCSV = null;
 		
@@ -227,7 +244,7 @@ public final class CsvStatement extends StatementAdapter {
 		return new DummyResultSet();
 	}
 
-	private ResultSet createGenericResultSet(String tableName, Reader dummyTableDataReader) {
+	private static ResultSet createGenericResultSet(String tableName, Reader dummyTableDataReader) {
 
 		// Maps table columns to a number of available values.
 		Collection<LinkedHashMap<String, String>> entries = new ArrayList<LinkedHashMap<String, String>>();
@@ -239,7 +256,10 @@ public final class CsvStatement extends StatementAdapter {
 
 			// Read header
 			String[] header = dummyTableReader.readNext();
-			if (header != null) {
+			if (header == null) {
+				LOGGER.info("Empty table definition for '{}', using DummyResultSet.", tableName);
+				return new DummyResultSet();
+			} else {
 
 				String[] data;
 				// Read data
@@ -293,7 +313,7 @@ public final class CsvStatement extends StatementAdapter {
 		return new CSVResultSet(null, null, entries);
 	}
 
-	private String resolveHeaderName(String str) {
+	private static String resolveHeaderName(String str) {
 	    return str.trim().toUpperCase();
     }
 

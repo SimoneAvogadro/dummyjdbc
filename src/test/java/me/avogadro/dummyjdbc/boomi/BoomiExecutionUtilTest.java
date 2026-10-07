@@ -216,4 +216,19 @@ public final class BoomiExecutionUtilTest {
 		Assert.assertEquals("a", FakeExecutionUtil.PROPERTIES.get("dummyjdbc_My_Proc_PARAMS"));
 		Assert.assertEquals("a", FakeExecutionUtil.PROPERTIES.get("dummyjdbc_my_proc_params"));
 	}
+
+	@Test
+	public void testGetColumnsOfTableDefinedAsProperty() throws Exception {
+		BoomiExecutionUtil.lookup(FakeExecutionUtil.class.getName());
+		FakeExecutionUtil.PROPERTIES.put("dummyjdbc_payments", "id|integer, amount|double");
+
+		ResultSet columns = DriverManager.getConnection("any").getMetaData().getColumns(null, null, "payments", null);
+
+		Assert.assertTrue(columns.next());
+		Assert.assertEquals("id", columns.getString("COLUMN_NAME"));
+		Assert.assertEquals(java.sql.Types.INTEGER, columns.getInt("DATA_TYPE"));
+		Assert.assertTrue(columns.next());
+		Assert.assertEquals("amount", columns.getString("COLUMN_NAME"));
+		Assert.assertFalse(columns.next());
+	}
 }

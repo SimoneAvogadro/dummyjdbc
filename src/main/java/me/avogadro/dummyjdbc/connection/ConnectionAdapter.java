@@ -1,5 +1,7 @@
 package me.avogadro.dummyjdbc.connection;
 
+import java.util.Collections;
+import java.io.File;
 import java.sql.Array;
 import java.sql.Blob;
 import java.sql.CallableStatement;
@@ -84,7 +86,14 @@ public class ConnectionAdapter implements Connection {
 
 	@Override
 	public DatabaseMetaData getMetaData() throws SQLException {
-		return new DummyDatabaseMetaData(this, getConnectionUrl());
+		return new DummyDatabaseMetaData(this, getConnectionUrl(), getTableResources());
+	}
+
+	/**
+	 * @return the CSV files registered for the tables of this connection, used by {@link #getMetaData()}
+	 */
+	protected Map<String, File> getTableResources() {
+		return Collections.emptyMap();
 	}
 
 	/**

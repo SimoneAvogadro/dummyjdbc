@@ -17,7 +17,10 @@ public class DummyResultSetMetaData implements ResultSetMetaData {
     private enum DataType {
         VARCHAR(Types.VARCHAR, String.class),
         INTEGER(Types.INTEGER, Integer.class),
+        BIGINT(Types.BIGINT, Long.class),
         DOUBLE(Types.DOUBLE, Double.class),
+        DECIMAL(Types.DECIMAL, java.math.BigDecimal.class),
+        BOOLEAN(Types.BOOLEAN, Boolean.class),
         DATE(Types.DATE, Date.class),
         TIME(Types.TIME, Date.class),
         TIMESTAMP(Types.TIMESTAMP, Date.class);
@@ -106,7 +109,8 @@ public class DummyResultSetMetaData implements ResultSetMetaData {
     @Override
     public boolean isSigned(int column) throws SQLException {
         int type = getColumnType(column);
-        if (type == DataType.DOUBLE.sqlType || type == DataType.INTEGER.sqlType) {
+        if (type == DataType.DOUBLE.sqlType || type == DataType.INTEGER.sqlType || type == DataType.BIGINT.sqlType
+                || type == DataType.DECIMAL.sqlType) {
             return true;
         }
         return false;

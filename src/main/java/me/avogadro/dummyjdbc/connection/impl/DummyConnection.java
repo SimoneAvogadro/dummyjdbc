@@ -53,6 +53,11 @@ public class DummyConnection extends ConnectionAdapter {
 	}
 
 	@Override
+	protected Map<String, File> getTableResources() {
+		return tableResources;
+	}
+
+	@Override
 	public Statement createStatement() throws SQLException {
 		return new CsvStatement(tableResources);
 	}

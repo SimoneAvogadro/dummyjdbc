@@ -17,6 +17,8 @@ Unreleased
  * `getLong`, `getShort`, `getByte`, `getDouble`, `getFloat` and `getRow()` are implemented for CSV result sets
  * `ResultSetMetaData.getColumnName()` / `getColumnLabel()` return the column names as written in the CSV header
    (were upper case, e.g. Boomi Database V2 documents had keys `ID`, `NAME` instead of `id`, `name`)
+ * `DatabaseMetaData.getColumns` describes the columns of a table from its CSV header (resolved as for a query), so the
+   Boomi Database V2 connector can bind parameters by type; new header types `|bigint`, `|decimal`, `|boolean`
  * Driver version reported as 1.5 (was 1.0)
  * Boomi support through Dynamic Process Properties (detected at runtime via reflection, no dependency on Boomi):
    tables can be provided as `dummyjdbc_<name>` properties (name as written, then lower case) and captured

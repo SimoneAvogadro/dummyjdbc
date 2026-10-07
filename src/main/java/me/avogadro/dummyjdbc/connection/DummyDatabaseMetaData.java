@@ -4,18 +4,27 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.RowIdLifetime;
+import java.io.File;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.Types;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Pattern;
 
 import me.avogadro.dummyjdbc.DummyJdbcDriver;
 import me.avogadro.dummyjdbc.resultset.DummyResultSetMetaData;
 import me.avogadro.dummyjdbc.resultset.impl.CSVResultSet;
+import me.avogadro.dummyjdbc.statement.impl.CsvStatement;
 
 /**
- * Metadata of the dummy database. There is no real schema: descriptive values are never <code>null</code> and every
- * method returning a {@link ResultSet} returns an empty one, with the columns defined by the JDBC specification. Tools
- * reading the metadata before running a query (e.g. the Boomi Database V2 connector) can therefore go on.
+ * Metadata of the dummy database. Descriptive values are never <code>null</code>. {@link #getColumns} describes the
+ * columns of a table from the header of its CSV (resolved as for a query); every other method returning a
+ * {@link ResultSet} returns an empty one, with the columns defined by the JDBC specification. Tools reading the
+ * metadata before running a query (e.g. the Boomi Database V2 connector) can therefore go on.
  */
 public class DummyDatabaseMetaData implements DatabaseMetaData {
 
@@ -29,16 +38,36 @@ public class DummyDatabaseMetaData implements DatabaseMetaData {
             "FKTABLE_CAT", "FKTABLE_SCHEM", "FKTABLE_NAME", "FKCOLUMN_NAME", "KEY_SEQ", "UPDATE_RULE", "DELETE_RULE",
             "FK_NAME", "PK_NAME", "DEFERRABILITY" };
 
+    private static final String[] COLUMNS_COLUMNS = { "TABLE_CAT", "TABLE_SCHEM", "TABLE_NAME", "COLUMN_NAME",
+            "DATA_TYPE", "TYPE_NAME", "COLUMN_SIZE", "BUFFER_LENGTH", "DECIMAL_DIGITS", "NUM_PREC_RADIX", "NULLABLE",
+            "REMARKS", "COLUMN_DEF", "SQL_DATA_TYPE", "SQL_DATETIME_SUB", "CHAR_OCTET_LENGTH", "ORDINAL_POSITION",
+            "IS_NULLABLE", "SCOPE_CATALOG", "SCOPE_SCHEMA", "SCOPE_TABLE", "SOURCE_DATA_TYPE", "IS_AUTOINCREMENT",
+            "IS_GENERATEDCOLUMN" };
+
+    /** DECIMAL_DIGITS reported for |double and |decimal columns (the CSV does not declare a scale) */
+    static final int DECIMAL_DIGITS = 10;
+
     private final Connection connection;
     private final String url;
+    private final Map<String, File> tableResources;
+
+    /**
+     * @param connection the connection these metadata belong to
+     * @param url the JDBC URL used to open the connection
+     * @param tableResources the CSV files registered for the tables of the connection
+     */
+    public DummyDatabaseMetaData(Connection connection, String url, Map<String, File> tableResources) {
+        this.connection = connection;
+        this.url = url == null ? "" : url;
+        this.tableResources = tableResources == null ? Collections.<String, File>emptyMap() : tableResources;
+    }
 
     /**
      * @param connection the connection these metadata belong to
      * @param url the JDBC URL used to open the connection
      */
     public DummyDatabaseMetaData(Connection connection, String url) {
-        this.connection = connection;
-        this.url = url == null ? "" : url;
+        this(connection, url, null);
     }
 
     public DummyDatabaseMetaData() {
@@ -546,8 +575,74 @@ public class DummyDatabaseMetaData implements DatabaseMetaData {
         return emptyResultSet("getTableTypes", "TABLE_TYPE");
     }
 
-    @Override public ResultSet getColumns(String s, String s2, String s3, String s4) throws SQLException {
-        return emptyResultSet("getColumns", "TABLE_CAT", "TABLE_SCHEM", "TABLE_NAME", "COLUMN_NAME", "DATA_TYPE", "TYPE_NAME", "COLUMN_SIZE", "BUFFER_LENGTH", "DECIMAL_DIGITS", "NUM_PREC_RADIX", "NULLABLE", "REMARKS", "COLUMN_DEF", "SQL_DATA_TYPE", "SQL_DATETIME_SUB", "CHAR_OCTET_LENGTH", "ORDINAL_POSITION", "IS_NULLABLE", "SCOPE_CATALOG", "SCOPE_SCHEMA", "SCOPE_TABLE", "SOURCE_DATA_TYPE", "IS_AUTOINCREMENT", "IS_GENERATEDCOLUMN");
+    /**
+     * One row per column of the CSV header of the table, found as for a <code>SELECT * FROM table</code> (in-memory
+     * resource, Boomi Dynamic Process Property, registered file or <code>/tables/</code>). Catalog and schema are
+     * ignored; the table name must be exact (case insensitive), the column pattern supports <code>%</code> and
+     * <code>_</code>.
+     */
+    @Override public ResultSet getColumns(String catalog, String schemaPattern, String tableNamePattern,
+            String columnNamePattern) throws SQLException {
+        List<LinkedHashMap<String, String>> rows = new ArrayList<LinkedHashMap<String, String>>();
+        String tableName = tableNamePattern == null ? "" : tableNamePattern.trim();
+        if (!tableName.isEmpty() && !"%".equals(tableName)) {
+            ResultSetMetaData table = CsvStatement.loadTable(tableResources, tableName).getMetaData();
+            int columnCount = table == null ? 0 : table.getColumnCount();
+            Pattern columnPattern = likePattern(columnNamePattern);
+            for (int i = 1; i <= columnCount; i++) {
+                String columnName = table.getColumnName(i);
+                if (columnPattern != null && !columnPattern.matcher(columnName).matches()) {
+                    continue;
+                }
+                int type = table.getColumnType(i);
+                boolean decimal = type == Types.DOUBLE || type == Types.DECIMAL;
+                LinkedHashMap<String, String> row = new LinkedHashMap<String, String>();
+                row.put("TABLE_CAT", null);
+                row.put("TABLE_SCHEM", null);
+                row.put("TABLE_NAME", tableName);
+                row.put("COLUMN_NAME", columnName);
+                row.put("DATA_TYPE", String.valueOf(type));
+                row.put("TYPE_NAME", table.getColumnTypeName(i));
+                row.put("COLUMN_SIZE", String.valueOf(table.getPrecision(i)));
+                row.put("BUFFER_LENGTH", "0");
+                row.put("DECIMAL_DIGITS", String.valueOf(decimal ? DECIMAL_DIGITS : 0));
+                row.put("NUM_PREC_RADIX", "10");
+                row.put("NULLABLE", String.valueOf(columnNullable));
+                row.put("REMARKS", null);
+                row.put("COLUMN_DEF", null);
+                row.put("SQL_DATA_TYPE", "0");
+                row.put("SQL_DATETIME_SUB", "0");
+                row.put("CHAR_OCTET_LENGTH", String.valueOf(table.getPrecision(i)));
+                row.put("ORDINAL_POSITION", String.valueOf(i));
+                row.put("IS_NULLABLE", "YES");
+                row.put("SCOPE_CATALOG", null);
+                row.put("SCOPE_SCHEMA", null);
+                row.put("SCOPE_TABLE", null);
+                row.put("SOURCE_DATA_TYPE", null);
+                row.put("IS_AUTOINCREMENT", "NO");
+                row.put("IS_GENERATEDCOLUMN", "NO");
+                rows.add(row);
+            }
+        }
+        return new CSVResultSet("getColumns", new DummyResultSetMetaData("getColumns", COLUMNS_COLUMNS), rows);
+    }
+
+    /** JDBC LIKE pattern (% and _) to a case insensitive regex; null for "match everything" */
+    private static Pattern likePattern(String pattern) {
+        if (pattern == null || pattern.isEmpty() || "%".equals(pattern)) {
+            return null;
+        }
+        StringBuilder regex = new StringBuilder();
+        for (char c : pattern.toCharArray()) {
+            if (c == '%') {
+                regex.append(".*");
+            } else if (c == '_') {
+                regex.append('.');
+            } else {
+                regex.append(Pattern.quote(String.valueOf(c)));
+            }
+        }
+        return Pattern.compile(regex.toString(), Pattern.CASE_INSENSITIVE);
     }
 
     @Override public ResultSet getColumnPrivileges(String s, String s2, String s3, String s4) throws SQLException {
