@@ -39,6 +39,10 @@ public final class DummyJdbcDriver implements Driver {
 	private static final String TIMESTAMP_FORMAT = "yyyyMMdd HHmmss.SSS";
 
 	public static final String STEP_PREFIX = "##STEP";
+
+	/** Version of the driver, also reported by the database metadata */
+	public static final int VERSION_MAJOR = 1;
+	public static final int VERSION_MINOR = 5;
 	
 	/**
 	 * Counter for the number of statements being executed
@@ -127,12 +131,12 @@ public final class DummyJdbcDriver implements Driver {
 
 	@Override
 	public int getMajorVersion() {
-		return 1;
+		return VERSION_MAJOR;
 	}
 
 	@Override
 	public int getMinorVersion() {
-		return 0;
+		return VERSION_MINOR;
 	}
 
 	@Override
@@ -163,7 +167,7 @@ public final class DummyJdbcDriver implements Driver {
 			}
 		}
 
-		return new DummyConnection(databaseMap);
+		return new DummyConnection(databaseMap, url);
 	}
 
 	@Override

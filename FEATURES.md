@@ -379,6 +379,10 @@ Tips:
 * Call `DummyJdbcDriver.reset()` in your `@Before` – the driver keeps **static** state (resources and step counter).
 * `DummyJdbcDriver.clearInMemoryTableResources()` clears only the in-memory data.
 * Not every JDBC method is implemented; unsupported ones throw `UnsupportedOperationException`.
+* `Connection.getMetaData()` describes a database without schema: product and driver name are `DummyJDBC`, version
+  `1.5`, the identifier quote string is a space (identifiers are never quoted), and every method returning a `ResultSet`
+  (`getTables`, `getColumns`, `getPrimaryKeys`, ...) returns an empty one with the standard JDBC columns. No method
+  returns `null`, so tools that inspect the metadata before running a query (e.g. the Boomi Database V2 connector) work.
 * **Character encoding:** in-memory CSV strings are used as they are, so any Unicode text works regardless of the VM settings.
   CSV **files** (and `InputStream`s) are read with the default charset of the VM; make sure your files match it.
 

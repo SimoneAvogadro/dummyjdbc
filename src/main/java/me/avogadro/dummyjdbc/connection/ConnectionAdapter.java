@@ -84,7 +84,14 @@ public class ConnectionAdapter implements Connection {
 
 	@Override
 	public DatabaseMetaData getMetaData() throws SQLException {
-		return new DummyDatabaseMetaData();
+		return new DummyDatabaseMetaData(this, getConnectionUrl());
+	}
+
+	/**
+	 * @return the JDBC URL used to open this connection, reported by {@link #getMetaData()}
+	 */
+	protected String getConnectionUrl() {
+		return "";
 	}
 
 	@Override

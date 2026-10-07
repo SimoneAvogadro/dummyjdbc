@@ -23,16 +23,33 @@ public class DummyConnection extends ConnectionAdapter {
 
 	private Map<String, File> tableResources;
 
+	private final String url;
+
 	/**
 	 * Constructs a new {@link DummyConnection}.
 	 * @param tableResources {@link Map} of table name to CSV file.
 	 */
 	public DummyConnection(Map<String, File> tableResources) {
+		this(tableResources, "");
+	}
+
+	/**
+	 * Constructs a new {@link DummyConnection}.
+	 * @param tableResources {@link Map} of table name to CSV file.
+	 * @param url the JDBC URL used to open the connection
+	 */
+	public DummyConnection(Map<String, File> tableResources, String url) {
+		this.url = url == null ? "" : url;
 		if (tableResources == null) {
 			this.tableResources = Collections.emptyMap();
 		} else {
 			this.tableResources = tableResources;
 		}
+	}
+
+	@Override
+	protected String getConnectionUrl() {
+		return url;
 	}
 
 	@Override

@@ -5,8 +5,51 @@ import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.RowIdLifetime;
 import java.sql.SQLException;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 
+import me.avogadro.dummyjdbc.DummyJdbcDriver;
+import me.avogadro.dummyjdbc.resultset.DummyResultSetMetaData;
+import me.avogadro.dummyjdbc.resultset.impl.CSVResultSet;
+
+/**
+ * Metadata of the dummy database. There is no real schema: descriptive values are never <code>null</code> and every
+ * method returning a {@link ResultSet} returns an empty one, with the columns defined by the JDBC specification. Tools
+ * reading the metadata before running a query (e.g. the Boomi Database V2 connector) can therefore go on.
+ */
 public class DummyDatabaseMetaData implements DatabaseMetaData {
+
+    /** Value of {@link #getDatabaseProductName()} and {@link #getDriverName()} */
+    public static final String PRODUCT_NAME = "DummyJDBC";
+
+    /** Value of {@link #getDatabaseProductVersion()} and {@link #getDriverVersion()} */
+    public static final String VERSION = DummyJdbcDriver.VERSION_MAJOR + "." + DummyJdbcDriver.VERSION_MINOR;
+
+    private static final String[] KEY_COLUMNS = { "PKTABLE_CAT", "PKTABLE_SCHEM", "PKTABLE_NAME", "PKCOLUMN_NAME",
+            "FKTABLE_CAT", "FKTABLE_SCHEM", "FKTABLE_NAME", "FKCOLUMN_NAME", "KEY_SEQ", "UPDATE_RULE", "DELETE_RULE",
+            "FK_NAME", "PK_NAME", "DEFERRABILITY" };
+
+    private final Connection connection;
+    private final String url;
+
+    /**
+     * @param connection the connection these metadata belong to
+     * @param url the JDBC URL used to open the connection
+     */
+    public DummyDatabaseMetaData(Connection connection, String url) {
+        this.connection = connection;
+        this.url = url == null ? "" : url;
+    }
+
+    public DummyDatabaseMetaData() {
+        this(null, "");
+    }
+
+    private static ResultSet emptyResultSet(String name, String... columns) {
+        return new CSVResultSet(name, new DummyResultSetMetaData(name, columns),
+                Collections.<LinkedHashMap<String, String>>emptyList());
+    }
+
     @Override public boolean allProceduresAreCallable() throws SQLException {
         return false;
     }
@@ -16,11 +59,11 @@ public class DummyDatabaseMetaData implements DatabaseMetaData {
     }
 
     @Override public String getURL() throws SQLException {
-        return null;
+        return url;
     }
 
     @Override public String getUserName() throws SQLException {
-        return null;
+        return "";
     }
 
     @Override public boolean isReadOnly() throws SQLException {
@@ -44,27 +87,27 @@ public class DummyDatabaseMetaData implements DatabaseMetaData {
     }
 
     @Override public String getDatabaseProductName() throws SQLException {
-        return null;
+        return PRODUCT_NAME;
     }
 
     @Override public String getDatabaseProductVersion() throws SQLException {
-        return null;
+        return VERSION;
     }
 
     @Override public String getDriverName() throws SQLException {
-        return null;
+        return PRODUCT_NAME;
     }
 
     @Override public String getDriverVersion() throws SQLException {
-        return null;
+        return VERSION;
     }
 
     @Override public int getDriverMajorVersion() {
-        return 0;
+        return DummyJdbcDriver.VERSION_MAJOR;
     }
 
     @Override public int getDriverMinorVersion() {
-        return 0;
+        return DummyJdbcDriver.VERSION_MINOR;
     }
 
     @Override public boolean usesLocalFiles() throws SQLException {
@@ -108,35 +151,35 @@ public class DummyDatabaseMetaData implements DatabaseMetaData {
     }
 
     @Override public String getIdentifierQuoteString() throws SQLException {
-        return null;
+        return " ";
     }
 
     @Override public String getSQLKeywords() throws SQLException {
-        return null;
+        return "";
     }
 
     @Override public String getNumericFunctions() throws SQLException {
-        return null;
+        return "";
     }
 
     @Override public String getStringFunctions() throws SQLException {
-        return null;
+        return "";
     }
 
     @Override public String getSystemFunctions() throws SQLException {
-        return null;
+        return "";
     }
 
     @Override public String getTimeDateFunctions() throws SQLException {
-        return null;
+        return "";
     }
 
     @Override public String getSearchStringEscape() throws SQLException {
-        return null;
+        return "\\";
     }
 
     @Override public String getExtraNameCharacters() throws SQLException {
-        return null;
+        return "";
     }
 
     @Override public boolean supportsAlterTableWithAddColumn() throws SQLException {
@@ -248,15 +291,15 @@ public class DummyDatabaseMetaData implements DatabaseMetaData {
     }
 
     @Override public String getSchemaTerm() throws SQLException {
-        return null;
+        return "schema";
     }
 
     @Override public String getProcedureTerm() throws SQLException {
-        return null;
+        return "procedure";
     }
 
     @Override public String getCatalogTerm() throws SQLException {
-        return null;
+        return "catalog";
     }
 
     @Override public boolean isCatalogAtStart() throws SQLException {
@@ -264,7 +307,7 @@ public class DummyDatabaseMetaData implements DatabaseMetaData {
     }
 
     @Override public String getCatalogSeparator() throws SQLException {
-        return null;
+        return ".";
     }
 
     @Override public boolean supportsSchemasInDataManipulation() throws SQLException {
@@ -480,71 +523,71 @@ public class DummyDatabaseMetaData implements DatabaseMetaData {
     }
 
     @Override public ResultSet getProcedures(String s, String s2, String s3) throws SQLException {
-        return null;
+        return emptyResultSet("getProcedures", "PROCEDURE_CAT", "PROCEDURE_SCHEM", "PROCEDURE_NAME", "RESERVED1", "RESERVED2", "RESERVED3", "REMARKS", "PROCEDURE_TYPE", "SPECIFIC_NAME");
     }
 
     @Override public ResultSet getProcedureColumns(String s, String s2, String s3, String s4) throws SQLException {
-        return null;
+        return emptyResultSet("getProcedureColumns", "PROCEDURE_CAT", "PROCEDURE_SCHEM", "PROCEDURE_NAME", "COLUMN_NAME", "COLUMN_TYPE", "DATA_TYPE", "TYPE_NAME", "PRECISION", "LENGTH", "SCALE", "RADIX", "NULLABLE", "REMARKS", "COLUMN_DEF", "SQL_DATA_TYPE", "SQL_DATETIME_SUB", "CHAR_OCTET_LENGTH", "ORDINAL_POSITION", "IS_NULLABLE", "SPECIFIC_NAME");
     }
 
     @Override public ResultSet getTables(String s, String s2, String s3, String[] strings) throws SQLException {
-        return null;
+        return emptyResultSet("getTables", "TABLE_CAT", "TABLE_SCHEM", "TABLE_NAME", "TABLE_TYPE", "REMARKS", "TYPE_CAT", "TYPE_SCHEM", "TYPE_NAME", "SELF_REFERENCING_COL_NAME", "REF_GENERATION");
     }
 
     @Override public ResultSet getSchemas() throws SQLException {
-        return null;
+        return emptyResultSet("getSchemas", "TABLE_SCHEM", "TABLE_CATALOG");
     }
 
     @Override public ResultSet getCatalogs() throws SQLException {
-        return null;
+        return emptyResultSet("getCatalogs", "TABLE_CAT");
     }
 
     @Override public ResultSet getTableTypes() throws SQLException {
-        return null;
+        return emptyResultSet("getTableTypes", "TABLE_TYPE");
     }
 
     @Override public ResultSet getColumns(String s, String s2, String s3, String s4) throws SQLException {
-        return null;
+        return emptyResultSet("getColumns", "TABLE_CAT", "TABLE_SCHEM", "TABLE_NAME", "COLUMN_NAME", "DATA_TYPE", "TYPE_NAME", "COLUMN_SIZE", "BUFFER_LENGTH", "DECIMAL_DIGITS", "NUM_PREC_RADIX", "NULLABLE", "REMARKS", "COLUMN_DEF", "SQL_DATA_TYPE", "SQL_DATETIME_SUB", "CHAR_OCTET_LENGTH", "ORDINAL_POSITION", "IS_NULLABLE", "SCOPE_CATALOG", "SCOPE_SCHEMA", "SCOPE_TABLE", "SOURCE_DATA_TYPE", "IS_AUTOINCREMENT", "IS_GENERATEDCOLUMN");
     }
 
     @Override public ResultSet getColumnPrivileges(String s, String s2, String s3, String s4) throws SQLException {
-        return null;
+        return emptyResultSet("getColumnPrivileges", "TABLE_CAT", "TABLE_SCHEM", "TABLE_NAME", "COLUMN_NAME", "GRANTOR", "GRANTEE", "PRIVILEGE", "IS_GRANTABLE");
     }
 
     @Override public ResultSet getTablePrivileges(String s, String s2, String s3) throws SQLException {
-        return null;
+        return emptyResultSet("getTablePrivileges", "TABLE_CAT", "TABLE_SCHEM", "TABLE_NAME", "GRANTOR", "GRANTEE", "PRIVILEGE", "IS_GRANTABLE");
     }
 
     @Override public ResultSet getBestRowIdentifier(String s, String s2, String s3, int i, boolean b) throws SQLException {
-        return null;
+        return emptyResultSet("getBestRowIdentifier", "SCOPE", "COLUMN_NAME", "DATA_TYPE", "TYPE_NAME", "COLUMN_SIZE", "BUFFER_LENGTH", "DECIMAL_DIGITS", "PSEUDO_COLUMN");
     }
 
     @Override public ResultSet getVersionColumns(String s, String s2, String s3) throws SQLException {
-        return null;
+        return emptyResultSet("getVersionColumns", "SCOPE", "COLUMN_NAME", "DATA_TYPE", "TYPE_NAME", "COLUMN_SIZE", "BUFFER_LENGTH", "DECIMAL_DIGITS", "PSEUDO_COLUMN");
     }
 
     @Override public ResultSet getPrimaryKeys(String s, String s2, String s3) throws SQLException {
-        return null;
+        return emptyResultSet("getPrimaryKeys", "TABLE_CAT", "TABLE_SCHEM", "TABLE_NAME", "COLUMN_NAME", "KEY_SEQ", "PK_NAME");
     }
 
     @Override public ResultSet getImportedKeys(String s, String s2, String s3) throws SQLException {
-        return null;
+        return emptyResultSet("getImportedKeys", KEY_COLUMNS);
     }
 
     @Override public ResultSet getExportedKeys(String s, String s2, String s3) throws SQLException {
-        return null;
+        return emptyResultSet("getExportedKeys", KEY_COLUMNS);
     }
 
     @Override public ResultSet getCrossReference(String s, String s2, String s3, String s4, String s5, String s6) throws SQLException {
-        return null;
+        return emptyResultSet("getCrossReference", KEY_COLUMNS);
     }
 
     @Override public ResultSet getTypeInfo() throws SQLException {
-        return null;
+        return emptyResultSet("getTypeInfo", "TYPE_NAME", "DATA_TYPE", "PRECISION", "LITERAL_PREFIX", "LITERAL_SUFFIX", "CREATE_PARAMS", "NULLABLE", "CASE_SENSITIVE", "SEARCHABLE", "UNSIGNED_ATTRIBUTE", "FIXED_PREC_SCALE", "AUTO_INCREMENT", "LOCAL_TYPE_NAME", "MINIMUM_SCALE", "MAXIMUM_SCALE", "SQL_DATA_TYPE", "SQL_DATETIME_SUB", "NUM_PREC_RADIX");
     }
 
     @Override public ResultSet getIndexInfo(String s, String s2, String s3, boolean b, boolean b2) throws SQLException {
-        return null;
+        return emptyResultSet("getIndexInfo", "TABLE_CAT", "TABLE_SCHEM", "TABLE_NAME", "NON_UNIQUE", "INDEX_QUALIFIER", "INDEX_NAME", "TYPE", "ORDINAL_POSITION", "COLUMN_NAME", "ASC_OR_DESC", "CARDINALITY", "PAGES", "FILTER_CONDITION");
     }
 
     @Override public boolean supportsResultSetType(int i) throws SQLException {
@@ -596,11 +639,11 @@ public class DummyDatabaseMetaData implements DatabaseMetaData {
     }
 
     @Override public ResultSet getUDTs(String s, String s2, String s3, int[] ints) throws SQLException {
-        return null;
+        return emptyResultSet("getUDTs", "TYPE_CAT", "TYPE_SCHEM", "TYPE_NAME", "CLASS_NAME", "DATA_TYPE", "REMARKS", "BASE_TYPE");
     }
 
     @Override public Connection getConnection() throws SQLException {
-        return null;
+        return connection;
     }
 
     @Override public boolean supportsSavepoints() throws SQLException {
@@ -620,15 +663,15 @@ public class DummyDatabaseMetaData implements DatabaseMetaData {
     }
 
     @Override public ResultSet getSuperTypes(String s, String s2, String s3) throws SQLException {
-        return null;
+        return emptyResultSet("getSuperTypes", "TYPE_CAT", "TYPE_SCHEM", "TYPE_NAME", "SUPERTYPE_CAT", "SUPERTYPE_SCHEM", "SUPERTYPE_NAME");
     }
 
     @Override public ResultSet getSuperTables(String s, String s2, String s3) throws SQLException {
-        return null;
+        return emptyResultSet("getSuperTables", "TABLE_CAT", "TABLE_SCHEM", "TABLE_NAME", "SUPERTABLE_NAME");
     }
 
     @Override public ResultSet getAttributes(String s, String s2, String s3, String s4) throws SQLException {
-        return null;
+        return emptyResultSet("getAttributes", "TYPE_CAT", "TYPE_SCHEM", "TYPE_NAME", "ATTR_NAME", "DATA_TYPE", "ATTR_TYPE_NAME", "ATTR_SIZE", "DECIMAL_DIGITS", "NUM_PREC_RADIX", "NULLABLE", "REMARKS", "ATTR_DEF", "SQL_DATA_TYPE", "SQL_DATETIME_SUB", "CHAR_OCTET_LENGTH", "ORDINAL_POSITION", "IS_NULLABLE", "SCOPE_CATALOG", "SCOPE_SCHEMA", "SCOPE_TABLE", "SOURCE_DATA_TYPE");
     }
 
     @Override public boolean supportsResultSetHoldability(int i) throws SQLException {
@@ -640,19 +683,19 @@ public class DummyDatabaseMetaData implements DatabaseMetaData {
     }
 
     @Override public int getDatabaseMajorVersion() throws SQLException {
-        return 0;
+        return DummyJdbcDriver.VERSION_MAJOR;
     }
 
     @Override public int getDatabaseMinorVersion() throws SQLException {
-        return 0;
+        return DummyJdbcDriver.VERSION_MINOR;
     }
 
     @Override public int getJDBCMajorVersion() throws SQLException {
-        return 0;
+        return 4;
     }
 
     @Override public int getJDBCMinorVersion() throws SQLException {
-        return 0;
+        return 1;
     }
 
     @Override public int getSQLStateType() throws SQLException {
@@ -668,11 +711,11 @@ public class DummyDatabaseMetaData implements DatabaseMetaData {
     }
 
     @Override public RowIdLifetime getRowIdLifetime() throws SQLException {
-        return null;
+        return RowIdLifetime.ROWID_UNSUPPORTED;
     }
 
     @Override public ResultSet getSchemas(String s, String s2) throws SQLException {
-        return null;
+        return emptyResultSet("getSchemas", "TABLE_SCHEM", "TABLE_CATALOG");
     }
 
     @Override public boolean supportsStoredFunctionsUsingCallSyntax() throws SQLException {
@@ -684,19 +727,22 @@ public class DummyDatabaseMetaData implements DatabaseMetaData {
     }
 
     @Override public ResultSet getClientInfoProperties() throws SQLException {
-        return null;
+        return emptyResultSet("getClientInfoProperties", "NAME", "MAX_LEN", "DEFAULT_VALUE", "DESCRIPTION");
     }
 
     @Override public ResultSet getFunctions(String s, String s2, String s3) throws SQLException {
-        return null;
+        return emptyResultSet("getFunctions", "FUNCTION_CAT", "FUNCTION_SCHEM", "FUNCTION_NAME", "REMARKS", "FUNCTION_TYPE", "SPECIFIC_NAME");
     }
 
     @Override public ResultSet getFunctionColumns(String s, String s2, String s3, String s4) throws SQLException {
-        return null;
+        return emptyResultSet("getFunctionColumns", "FUNCTION_CAT", "FUNCTION_SCHEM", "FUNCTION_NAME", "COLUMN_NAME", "COLUMN_TYPE", "DATA_TYPE", "TYPE_NAME", "PRECISION", "LENGTH", "SCALE", "RADIX", "NULLABLE", "REMARKS", "CHAR_OCTET_LENGTH", "ORDINAL_POSITION", "IS_NULLABLE", "SPECIFIC_NAME");
     }
 
     @Override public <T> T unwrap(Class<T> tClass) throws SQLException {
-        return null;
+        if (tClass.isInstance(this)) {
+            return tClass.cast(this);
+        }
+        throw new SQLException("Not a wrapper for " + tClass.getName());
     }
 
     @Override public boolean isWrapperFor(Class<?> aClass) throws SQLException {
@@ -706,7 +752,8 @@ public class DummyDatabaseMetaData implements DatabaseMetaData {
 	@Override
 	public ResultSet getPseudoColumns(String catalog, String schemaPattern, String tableNamePattern, String columnNamePattern)
 			throws SQLException {
-		return null;
+		return emptyResultSet("getPseudoColumns", "TABLE_CAT", "TABLE_SCHEM", "TABLE_NAME", "COLUMN_NAME", "DATA_TYPE",
+				"COLUMN_SIZE", "DECIMAL_DIGITS", "NUM_PREC_RADIX", "COLUMN_USAGE", "REMARKS", "CHAR_OCTET_LENGTH", "IS_NULLABLE");
 	}
 
 	@Override
