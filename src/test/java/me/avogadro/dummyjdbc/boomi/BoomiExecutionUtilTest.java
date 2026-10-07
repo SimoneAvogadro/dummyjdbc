@@ -110,6 +110,7 @@ public final class BoomiExecutionUtilTest {
 		statement.executeUpdate();
 
 		Assert.assertEquals("bob", FakeExecutionUtil.PROPERTIES.get("dummyjdbc_T_014a_PARAMS"));
+		Assert.assertEquals("bob", FakeExecutionUtil.PROPERTIES.get("dummyjdbc_t_014a_params"));
 	}
 
 	/** runs a query selected by an explicit test case and returns the value of its NAME column, as "name\n<value>" */
@@ -169,7 +170,10 @@ public final class BoomiExecutionUtilTest {
 
 		Assert.assertEquals("hello,30", FakeExecutionUtil.PROPERTIES.get("dummyjdbc_users_PARAMS"));
 		Assert.assertEquals(Boolean.FALSE, FakeExecutionUtil.PERSIST_FLAGS.get("dummyjdbc_users_PARAMS"));
-		Assert.assertEquals(1, FakeExecutionUtil.PROPERTIES.size());
+		// lower case variant, suggested when working with Boomi
+		Assert.assertEquals("hello,30", FakeExecutionUtil.PROPERTIES.get("dummyjdbc_users_params"));
+		Assert.assertEquals(Boolean.FALSE, FakeExecutionUtil.PERSIST_FLAGS.get("dummyjdbc_users_params"));
+		Assert.assertEquals(2, FakeExecutionUtil.PROPERTIES.size());
 		// still available through the driver API as before
 		Assert.assertEquals("hello,30", DummyJdbcDriver.getInMemoryTableResource("users_PARAMS"));
 	}

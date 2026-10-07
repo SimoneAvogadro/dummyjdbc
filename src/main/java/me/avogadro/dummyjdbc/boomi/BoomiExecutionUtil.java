@@ -75,6 +75,28 @@ public final class BoomiExecutionUtil {
 		return value;
 	}
 
+	/**
+	 * Writes the Dynamic Process Property of a driver resource (never persisted) both with the name as written (e.g.
+	 * <code>dummyjdbc_Users_PARAMS</code>) and in lower case (<code>dummyjdbc_users_params</code>).
+	 *
+	 * @param resourceName name of a table, test case or captured parameters
+	 * @param value the value to set
+	 * @return <code>true</code> if the properties have been set, <code>false</code> when not running inside Boomi or in
+	 *         case of errors
+	 */
+	public static boolean setResourceProperty(String resourceName, String value) {
+		if (!isBoomi()) {
+			return false;
+		}
+		String exactName = propertyName(resourceName);
+		boolean ok = setDynamicProcessProperty(exactName, value);
+		String lowerCaseName = propertyName(resourceName.toLowerCase());
+		if (!lowerCaseName.equals(exactName)) {
+			ok &= setDynamicProcessProperty(lowerCaseName, value);
+		}
+		return ok;
+	}
+
 	private static String trimToNull(String value) {
 		if (value == null) {
 			return null;

@@ -419,14 +419,20 @@ The first one that is set and not blank is used.
 | table with parameters `mytable?Smith,34` ([section 4](#4-different-results-for-different-parameters)) | `dummyjdbc_mytable?Smith,34`, then `dummyjdbc_mytable?smith,34` |
 | step 0 ([section 5](#5-step-based-results-a-scripted-sequence)) | `dummyjdbc_##STEP0`, then `dummyjdbc_##step0` |
 
-When **writing** captured parameters the driver uses one name: the table (or test case) as written in the SQL followed
-by `_PARAMS` in upper case, exactly like the in-memory resource of [section 6](#6-capturing-insert--update-parameters):
+When **writing** captured parameters the driver sets two properties with the same value: the table (or test case) as
+written in the SQL followed by `_PARAMS` in upper case, exactly like the in-memory resource of
+[section 6](#6-capturing-insert--update-parameters), and the same name in lower case:
 
-| Statement | Dynamic Process Property (written) |
-|-----------|-------------------------------------|
-| `INSERT INTO users (...)` | `dummyjdbc_users_PARAMS` |
-| `UPDATE Users SET ...` | `dummyjdbc_Users_PARAMS` |
-| `-- TESTCASE: T_014a` + INSERT/UPDATE | `dummyjdbc_T_014a_PARAMS` |
+| Statement | Dynamic Process Properties (written) |
+|-----------|--------------------------------------|
+| `INSERT INTO users (...)` | `dummyjdbc_users_PARAMS` and `dummyjdbc_users_params` |
+| `UPDATE Users SET ...` | `dummyjdbc_Users_PARAMS` and `dummyjdbc_users_params` |
+| `-- TESTCASE: T_014a` + INSERT/UPDATE | `dummyjdbc_T_014a_PARAMS` and `dummyjdbc_t_014a_params` |
+
+> **Suggested when working with Boomi: write every property name in lower case** (`dummyjdbc_users`,
+> `dummyjdbc_t_014a`, `dummyjdbc_users_params`). The lower case name is always read and always written, whatever case
+> the SQL uses, so your process does not depend on how a table or test case is spelled in the queries. The names "as
+> written" are there for users who keep the same case in Java and in Boomi.
 
 ### Providing tables from the process
 
@@ -435,7 +441,7 @@ Set a Dynamic Process Property with the CSV text as value, for example with a Se
 ```groovy
 import com.boomi.execution.ExecutionUtil
 
-ExecutionUtil.setDynamicProcessProperty("dummyjdbc_users", "name, age\nJohn, 20\nMary, 31", false)
+ExecutionUtil.setDynamicProcessProperty("dummyjdbc_users", "name, age\nJohn, 20\nMary, 31", false)   // lower case: suggested
 ```
 
 A later `SELECT * FROM users` run through a Database connector that uses dummyjdbc returns those two rows.
@@ -452,7 +458,7 @@ Every time the driver captures the parameters of an INSERT/UPDATE ([section 6](#
 it also stores them in a Dynamic Process Property, **never persisted** across executions (`persist=false`):
 
 ```groovy
-String params = ExecutionUtil.getDynamicProcessProperty("dummyjdbc_users_PARAMS")   // e.g. "hello,30"
+String params = ExecutionUtil.getDynamicProcessProperty("dummyjdbc_users_params")   // lower case: suggested; e.g. "hello,30"
 ```
 
 The value is the same one returned by `DummyJdbcDriver.getInMemoryTableResource("users_PARAMS")`, which keeps working
