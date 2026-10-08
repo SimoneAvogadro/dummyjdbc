@@ -440,7 +440,7 @@ Tips:
 * Not every JDBC method is implemented; unsupported ones throw `UnsupportedOperationException`.
 * `setMaxRows(n)` limits the rows returned by the next queries of the statement (0 = no limit).
 * No key is ever generated: `getGeneratedKeys()` returns an empty result set (never `null`).
-* `Connection.getMetaData()`: product and driver name are `MockJDBC`, version `1.5`, the identifier quote string is a
+* `Connection.getMetaData()`: product and driver name are `MockJDBC`, version `2.0`, the identifier quote string is a
   space (identifiers are never quoted). `getColumns(catalog, schema, table, columnPattern)` returns one row per column
   of the table's CSV header, with the table found exactly as for a query (in memory, Boomi property, file); a header-only
   CSV is enough. `DATA_TYPE`/`TYPE_NAME` come from the `|type` of the header (`VARCHAR` when none), `DECIMAL_DIGITS` is
@@ -471,6 +471,10 @@ In the Database connection choose a custom driver with:
 
 * driver class `me.avogadro.mockjdbc.MockJdbcDriver`;
 * connection URL `any` (or `jdbc::mock::<dir>`, see [section 8](#8-several-databases-with-jdbc-urls)).
+
+**When you upgrade the jar**, make sure the old one is really gone: on Windows the runtime cannot delete jars in use
+while the Atom is running, and in a folder without `ignored_jars.txt` (e.g. `userlib\database` for the legacy Database
+connector) an old mockjdbc jar can hide the new one. Stop the Atom, delete the old mockjdbc jars, then start it again.
 
 The Database V2 connector reads the connection metadata before running queries
 (see [section 10](#10-resolution-order-and-good-to-know)). For the operations it builds from the table definition

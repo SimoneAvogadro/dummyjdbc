@@ -4,6 +4,9 @@
 > **mockjdbc** is the new name of this fork of [dummyjdbc](https://github.com/kaiwinter/dummyjdbc), the original project
 > by Kai Winter. The GitHub repository still keeps its old name for now.
 
+**Current version: 2.0.0** – see the [CHANGELOG](CHANGELOG.md) for what changed (new name, Boomi support, metadata,
+NULL values, repeated queries and much more).
+
 mockjdbc answers database requests of any application with mock data to be independent of an existing database.
 
 The library can either return default values, or values defined by you in a CSV file. The files are determined by the SQL query which makes this a very flexible tool. Also results of Stored Procedures can be mocked with data from CSV files.

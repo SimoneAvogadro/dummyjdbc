@@ -1,7 +1,7 @@
 Change Log
 ==========
 
-Unreleased
+Version 2.0.0 (2026-10-08)
 ----------------------------
 
  * Repeated use of a resource: `users#1`, `users#2`, ... are returned by the 1st, 2nd, ... query on `users` (falling back
@@ -33,7 +33,7 @@ Unreleased
    are captured/honoured; `findColumn()` is implemented; `SELECT 1` and unknown tables return metadata (was null)
  * NULL convention: an empty value in a column with a declared type other than `varchar` is SQL NULL (`wasNull()`
    is implemented); `getObject()` returns the Java type of the declared column type
- * Driver version reported as 1.5 (was 1.0)
+ * Driver version reported as 2.0 (was 1.0)
  * Boomi support through Dynamic Process Properties (detected at runtime via reflection, no dependency on Boomi):
    tables can be provided as `mockjdbc_<name>` properties (name as written, then lower case) and captured
    INSERT/UPDATE parameters are exposed as `mockjdbc_<table>_PARAMS` and `mockjdbc_<table in lower case>_params`

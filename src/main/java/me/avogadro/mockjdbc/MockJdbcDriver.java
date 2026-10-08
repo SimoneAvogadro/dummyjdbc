@@ -41,8 +41,8 @@ public final class MockJdbcDriver implements Driver {
 	public static final String STEP_PREFIX = "##STEP";
 
 	/** Version of the driver, also reported by the database metadata */
-	public static final int VERSION_MAJOR = 1;
-	public static final int VERSION_MINOR = 5;
+	public static final int VERSION_MAJOR = 2;
+	public static final int VERSION_MINOR = 0;
 	
 	/** Separator of the occurrence number in resource names: <code>users#2</code> is the second use of <code>users</code> */
 	public static final String OCCURRENCE_SEPARATOR = "#";
