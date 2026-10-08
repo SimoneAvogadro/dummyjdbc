@@ -564,9 +564,11 @@ as before. The numbered copies are set too: `mockjdbc_users_PARAMS#n` and `mockj
 The occurrence counters (`users#1`, `users#2`, ...) and the step counter belong to the thread running the statement,
 and the Boomi runtime reuses threads across executions. So that every execution starts from 1:
 
-* **Automatic:** before each statement the driver reads the execution ID
-  (`ExecutionUtil.getRuntimeExecutionProperty("EXECUTION_ID")`); when it differs from the one of the previous statement
-  on the same thread, the counters restart.
+* **Automatic:** before each statement the driver reads the ID of the top level execution
+  (`ExecutionManager.getCurrent().getTopLevelExecutionId()`, through reflection); when it differs from the one of the
+  previous statement on the same thread, the counters restart. The top level ID stays the same inside Try/Catch shapes
+  and other continuations, which get their own `EXECUTION_ID`; only when the top level ID is not available the driver
+  uses `ExecutionUtil.getRuntimeExecutionProperty("EXECUTION_ID")`.
 * **On request:** set the Dynamic Process Property **`mockjdbc#RESET`** (or `mockjdbc#reset`) to any non-blank value,
   e.g. between two scenarios tested in the same execution. Before the next statement the driver restarts the counters
   and empties the property (Boomi has no way to delete a property). The statement that sees the request becomes step 0.

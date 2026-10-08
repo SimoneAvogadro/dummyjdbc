@@ -19,6 +19,7 @@ public final class BoomiExecutionUtilTest {
 		Class.forName(MockJdbcDriver.class.getCanonicalName());
 		MockJdbcDriver.reset();
 		FakeExecutionUtil.clear();
+		FakeExecutionManager.current = null;
 	}
 
 	@After
@@ -320,5 +321,70 @@ public final class BoomiExecutionUtilTest {
 		Assert.assertEquals("b", FakeExecutionUtil.PROPERTIES.get("mockjdbc_users_PARAMS#1"));
 		Assert.assertNull(FakeExecutionUtil.PROPERTIES.get("mockjdbc_users_PARAMS#2"));
 		Assert.assertEquals("b", FakeExecutionUtil.PROPERTIES.get("mockjdbc_users_params"));
+	}
+
+	private static void useFakeExecutionManager() {
+		BoomiExecutionUtil.lookup(FakeExecutionUtil.class.getName(), FakeExecutionManager.class.getName());
+	}
+
+	@Test
+	public void testTopLevelExecutionIdIsPreferred() {
+		useFakeExecutionManager();
+		FakeExecutionUtil.executionId = "execution-try-catch";
+		FakeExecutionManager.current = new FakeExecutionManager.Task("execution-top", "execution-try-catch");
+
+		Assert.assertEquals("execution-top", BoomiExecutionUtil.getExecutionId());
+	}
+
+	@Test
+	public void testFallbackToExecutionIdWithoutCurrentTask() {
+		useFakeExecutionManager();
+		FakeExecutionUtil.executionId = "execution-1";
+
+		Assert.assertEquals("execution-1", BoomiExecutionUtil.getExecutionId());
+	}
+
+	@Test
+	public void testFallbackToExecutionIdWithoutTopLevelMethod() {
+		useFakeExecutionManager();
+		FakeExecutionUtil.executionId = "execution-2";
+		FakeExecutionManager.current = new FakeExecutionManager.OldTask();
+
+		Assert.assertEquals("execution-2", BoomiExecutionUtil.getExecutionId());
+	}
+
+	@Test
+	public void testTryCatchContinuationDoesNotRestartTheCounters() throws Exception {
+		useFakeExecutionManager();
+		FakeExecutionUtil.PROPERTIES.put("mockjdbc_users#1", "name\nfirst");
+		FakeExecutionUtil.PROPERTIES.put("mockjdbc_users#2", "name\nsecond");
+		String top = "execution-top-" + System.nanoTime();
+
+		// main path
+		FakeExecutionUtil.executionId = top;
+		FakeExecutionManager.current = new FakeExecutionManager.Task(top, top);
+		Assert.assertEquals("first", queryName("SELECT * FROM users"));
+
+		// inside a Try/Catch: new EXECUTION_ID, same top level execution
+		FakeExecutionUtil.executionId = "execution-continuation-" + System.nanoTime();
+		FakeExecutionManager.current = new FakeExecutionManager.Task(top, FakeExecutionUtil.executionId);
+		Assert.assertEquals("second", queryName("SELECT * FROM users"));
+	}
+
+	@Test
+	public void testNewTopLevelExecutionRestartsTheCounters() throws Exception {
+		useFakeExecutionManager();
+		FakeExecutionUtil.PROPERTIES.put("mockjdbc_users#1", "name\nfirst");
+		FakeExecutionUtil.PROPERTIES.put("mockjdbc_users#2", "name\nsecond");
+
+		String first = "execution-first-" + System.nanoTime();
+		FakeExecutionManager.current = new FakeExecutionManager.Task(first, first);
+		Assert.assertEquals("first", queryName("SELECT * FROM users"));
+		Assert.assertEquals("second", queryName("SELECT * FROM users"));
+
+		// another execution on the same (pooled) thread
+		String second = "execution-second-" + System.nanoTime();
+		FakeExecutionManager.current = new FakeExecutionManager.Task(second, second);
+		Assert.assertEquals("first", queryName("SELECT * FROM users"));
 	}
 }
