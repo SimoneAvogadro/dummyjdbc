@@ -58,6 +58,9 @@ public class CsvPreparedStatement extends PreparedStatementAdapter {
 
 	private ResultSet currentResultSet;
 
+	/** true while {@link #execute(String)} runs: the capture reuses the occurrence number of its query */
+	private boolean reuseQueryOccurrence = false;
+
 	/** copies of the parameters added with {@link #addBatch()} */
 	private final List<Object[]> batch = new ArrayList<Object[]>();
 	
@@ -85,12 +88,17 @@ public class CsvPreparedStatement extends PreparedStatementAdapter {
 
 		targetTable4Updates = null;
 		final boolean isSelect = SELECT_PATTERN.matcher(sql).matches();
+		boolean isStep = false;
+		if (!reuseQueryOccurrence) {
+			MockJdbcDriver.beforeExecution();
+		}
 		try {
 			int res = 1;
 			String stepRes = MockJdbcDriver.getInMemoryTableResourceForCurrentStep();
 			
 			if (stepRes!=null) {
 				targetTable4Updates = MockJdbcDriver.getStepName();
+				isStep = true;
 				try {
 					return Integer.parseInt(stepRes);
 				} catch (NumberFormatException nfe) {
@@ -139,9 +147,16 @@ public class CsvPreparedStatement extends PreparedStatementAdapter {
 			if (targetTable4Updates!=null && !isSelect) {
 				String paramsResource = targetTable4Updates+PARAMS_SUFFIX;
 				String paramsValue = buildParamsString();
+				// <name>_PARAMS always holds the latest parameters (the common single-write test)
 				MockJdbcDriver.addInMemoryTableResource( paramsResource, paramsValue );
 				// inside Boomi also expose them as Dynamic Process Properties (e.g. mockjdbc_users_PARAMS and mockjdbc_users_params)
 				BoomiExecutionUtil.setResourceProperty( paramsResource, paramsValue );
+				// <name>_PARAMS#n keeps the parameters of the n-th use of the name (steps are not numbered)
+				if (!isStep) {
+					String occurrenceResource = paramsResource + MockJdbcDriver.OCCURRENCE_SEPARATOR + captureOccurrence();
+					MockJdbcDriver.addInMemoryTableResource( occurrenceResource, paramsValue );
+					BoomiExecutionUtil.setResourceProperty( occurrenceResource, paramsValue );
+				}
 			}
 			
 			params = new Object[MAX_PARAMS];
@@ -149,6 +164,18 @@ public class CsvPreparedStatement extends PreparedStatementAdapter {
 			
 		}
 
+	}
+
+	/**
+	 * Occurrence number of the captured statement: the one of the query run by the same {@link #execute(String)} on the
+	 * same name, otherwise one more occurrence of the name.
+	 */
+	private int captureOccurrence() {
+		if (reuseQueryOccurrence && statement.lastOccurrenceName != null
+				&& statement.lastOccurrenceName.equalsIgnoreCase(targetTable4Updates)) {
+			return statement.lastOccurrence;
+		}
+		return MockJdbcDriver.nextOccurrence(targetTable4Updates);
 	}
 
 	/**
@@ -312,10 +339,12 @@ public class CsvPreparedStatement extends PreparedStatementAdapter {
 		try {
 			statement.paramsString = buildParamsString();
 			currentResultSet = statement.executeQuery(sql);
-			// try up update (generate params)
+			// try up update (generate params), counted as the same use of the name as the query
+			reuseQueryOccurrence = true;
 			executeUpdate(sql);
 			return true;
 		} finally {
+			reuseQueryOccurrence = false;
 			statement.paramsString = null;		
 		}
 	}

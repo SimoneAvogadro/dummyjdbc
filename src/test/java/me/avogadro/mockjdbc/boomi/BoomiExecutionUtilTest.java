@@ -173,7 +173,11 @@ public final class BoomiExecutionUtilTest {
 		// lower case variant, suggested when working with Boomi
 		Assert.assertEquals("hello,30", FakeExecutionUtil.PROPERTIES.get("mockjdbc_users_params"));
 		Assert.assertEquals(Boolean.FALSE, FakeExecutionUtil.PERSIST_FLAGS.get("mockjdbc_users_params"));
-		Assert.assertEquals(2, FakeExecutionUtil.PROPERTIES.size());
+		// first write of "users": also the numbered variants
+		Assert.assertEquals("hello,30", FakeExecutionUtil.PROPERTIES.get("mockjdbc_users_PARAMS#1"));
+		Assert.assertEquals("hello,30", FakeExecutionUtil.PROPERTIES.get("mockjdbc_users_params#1"));
+		Assert.assertEquals(Boolean.FALSE, FakeExecutionUtil.PERSIST_FLAGS.get("mockjdbc_users_params#1"));
+		Assert.assertEquals(4, FakeExecutionUtil.PROPERTIES.size());
 		// still available through the driver API as before
 		Assert.assertEquals("hello,30", MockJdbcDriver.getInMemoryTableResource("users_PARAMS"));
 	}
@@ -230,5 +234,91 @@ public final class BoomiExecutionUtilTest {
 		Assert.assertTrue(columns.next());
 		Assert.assertEquals("amount", columns.getString("COLUMN_NAME"));
 		Assert.assertFalse(columns.next());
+	}
+
+	private static String queryName(String sql) throws Exception {
+		ResultSet resultSet = DriverManager.getConnection("any").createStatement().executeQuery(sql);
+		return resultSet.next() ? resultSet.getString("name") : null;
+	}
+
+	@Test
+	public void testExecutionIdIsRead() {
+		BoomiExecutionUtil.lookup(FakeExecutionUtil.class.getName());
+		FakeExecutionUtil.executionId = "execution-1";
+
+		Assert.assertEquals("execution-1", BoomiExecutionUtil.getExecutionId());
+	}
+
+	@Test
+	public void testNewExecutionRestartsTheCounters() throws Exception {
+		BoomiExecutionUtil.lookup(FakeExecutionUtil.class.getName());
+		FakeExecutionUtil.PROPERTIES.put("mockjdbc_users#1", "name\nfirst");
+		FakeExecutionUtil.PROPERTIES.put("mockjdbc_users#2", "name\nsecond");
+
+		FakeExecutionUtil.executionId = "execution-A-" + System.nanoTime();
+		Assert.assertEquals("first", queryName("SELECT * FROM users"));
+		Assert.assertEquals("second", queryName("SELECT * FROM users"));
+
+		// the same (pooled) thread runs another execution
+		FakeExecutionUtil.executionId = "execution-B-" + System.nanoTime();
+		Assert.assertEquals("first", queryName("SELECT * FROM users"));
+	}
+
+	@Test
+	public void testNewExecutionRestartsTheSteps() throws Exception {
+		BoomiExecutionUtil.lookup(FakeExecutionUtil.class.getName());
+		FakeExecutionUtil.PROPERTIES.put("mockjdbc_##step0", "name\nstep zero");
+		FakeExecutionUtil.PROPERTIES.put("mockjdbc_##step1", "name\nstep one");
+
+		FakeExecutionUtil.executionId = "execution-C-" + System.nanoTime();
+		Assert.assertEquals("step zero", queryName("SELECT * FROM anything"));
+		Assert.assertEquals("step one", queryName("SELECT * FROM anything"));
+
+		FakeExecutionUtil.executionId = "execution-D-" + System.nanoTime();
+		Assert.assertEquals("step zero", queryName("SELECT * FROM anything"));
+	}
+
+	@Test
+	public void testResetPropertyRestartsTheCountersAndIsEmptied() throws Exception {
+		BoomiExecutionUtil.lookup(FakeExecutionUtil.class.getName());
+		FakeExecutionUtil.PROPERTIES.put("mockjdbc_users#1", "name\nfirst");
+		FakeExecutionUtil.PROPERTIES.put("mockjdbc_users#2", "name\nsecond");
+
+		Assert.assertEquals("first", queryName("SELECT * FROM users"));
+		FakeExecutionUtil.PROPERTIES.put("mockjdbc#RESET", "true");
+		Assert.assertEquals("first", queryName("SELECT * FROM users"));
+		Assert.assertEquals("", FakeExecutionUtil.PROPERTIES.get("mockjdbc#RESET"));
+		Assert.assertEquals(Boolean.FALSE, FakeExecutionUtil.PERSIST_FLAGS.get("mockjdbc#RESET"));
+		Assert.assertEquals("second", queryName("SELECT * FROM users"));
+	}
+
+	@Test
+	public void testResetPropertyInLowerCase() throws Exception {
+		BoomiExecutionUtil.lookup(FakeExecutionUtil.class.getName());
+		FakeExecutionUtil.PROPERTIES.put("mockjdbc_users#1", "name\nfirst");
+		FakeExecutionUtil.PROPERTIES.put("mockjdbc_users", "name\ndefault");
+
+		Assert.assertEquals("first", queryName("SELECT * FROM users"));
+		FakeExecutionUtil.PROPERTIES.put("mockjdbc#reset", "1");
+		Assert.assertEquals("first", queryName("SELECT * FROM users"));
+		Assert.assertEquals("", FakeExecutionUtil.PROPERTIES.get("mockjdbc#reset"));
+	}
+
+	@Test
+	public void testResetPropertyBeforeAWrite() throws Exception {
+		BoomiExecutionUtil.lookup(FakeExecutionUtil.class.getName());
+		java.sql.Connection connection = DriverManager.getConnection("any");
+		for (String value : new String[] { "a", "b" }) {
+			if ("b".equals(value)) {
+				FakeExecutionUtil.PROPERTIES.put("mockjdbc#RESET", "true");
+			}
+			PreparedStatement insert = connection.prepareStatement("INSERT INTO users (name) VALUES (?)");
+			insert.setString(1, value);
+			insert.executeUpdate();
+		}
+
+		Assert.assertEquals("b", FakeExecutionUtil.PROPERTIES.get("mockjdbc_users_PARAMS#1"));
+		Assert.assertNull(FakeExecutionUtil.PROPERTIES.get("mockjdbc_users_PARAMS#2"));
+		Assert.assertEquals("b", FakeExecutionUtil.PROPERTIES.get("mockjdbc_users_params"));
 	}
 }

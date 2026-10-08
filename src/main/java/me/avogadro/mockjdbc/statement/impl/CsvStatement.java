@@ -67,6 +67,10 @@ public final class CsvStatement extends StatementAdapter {
      */
     String paramsString = null;
 
+    /** resource name and occurrence number used by the last query (see {@link MockJdbcDriver#nextOccurrence}) */
+    String lastOccurrenceName = null;
+    int lastOccurrence = 0;
+
     /** see {@link #setMaxRows(int)}: 0 = no limit */
     private int maxRows = 0;
 
@@ -94,6 +98,9 @@ public final class CsvStatement extends StatementAdapter {
 	
 	@Override
 	public ResultSet executeQuery(String sql) throws SQLException {
+		MockJdbcDriver.beforeExecution();
+		lastOccurrenceName = null;
+		lastOccurrence = 0;
 		ResultSet resultSet = query(sql);
 		if (maxRows > 0 && resultSet instanceof CSVResultSet) {
 			((CSVResultSet) resultSet).setMaxRows(maxRows);
@@ -152,8 +159,8 @@ public final class CsvStatement extends StatementAdapter {
 			
 			// match based on the current step (sequence number)
 			if (stepRes!=null) {
-				String tableName = MockJdbcDriver.getStepName();
-				return createResultSet(tableName);
+				// steps are already a sequence: no occurrence number
+				return createResultSet(tableResources, MockJdbcDriver.getStepName(), paramsString, 0);
 			}
 						
 			// Try to check for a special heading comment within SQL
@@ -226,8 +233,11 @@ public final class CsvStatement extends StatementAdapter {
 		}
 	}
 
+	/** a query on a named resource (table, test case, procedure): counts one more occurrence of that name */
 	private ResultSet createResultSet(String tableName) {
-		return createResultSet(tableResources, tableName, paramsString);
+		lastOccurrenceName = tableName;
+		lastOccurrence = MockJdbcDriver.nextOccurrence(tableName);
+		return createResultSet(tableResources, tableName, paramsString, lastOccurrence);
 	}
 
 	/**
@@ -240,19 +250,32 @@ public final class CsvStatement extends StatementAdapter {
 	 * @return a {@link CSVResultSet}, or an empty {@link MockResultSet} if the table is not defined
 	 */
 	public static ResultSet loadTable(Map<String, File> tableResources, String tableName) {
-		return createResultSet(tableResources, tableName, null);
+		return createResultSet(tableResources, tableName, null, 0);
 	}
 
-	private static ResultSet createResultSet(Map<String, File> tableResources, String tableName, String paramsString) {
+	/**
+	 * @param occurrence how many times the resource name has been used (1 = first), 0 = not counted
+	 */
+	private static ResultSet createResultSet(Map<String, File> tableResources, String tableName, String paramsString,
+			int occurrence) {
 		Reader inMemoryReader = null;
 		String inMemoryCSV = null;
-		
-		// search for "tablename?param1,param2" etc...
+		String occurrenceSuffix = occurrence > 0 ? MockJdbcDriver.OCCURRENCE_SEPARATOR + occurrence : null;
+
+		// search for "tablename?param1,param2#n" and "tablename?param1,param2"
 		if (paramsString!=null) {
-			inMemoryCSV = MockJdbcDriver.getInMemoryTableResource(tableName+"?"+paramsString);
-		} // then search just for "tablename"
+			if (occurrenceSuffix != null) {
+				inMemoryCSV = MockJdbcDriver.getInMemoryTableResource(tableName+"?"+paramsString+occurrenceSuffix);
+			}
+			if (inMemoryCSV==null) {
+				inMemoryCSV = MockJdbcDriver.getInMemoryTableResource(tableName+"?"+paramsString);
+			}
+		} // then "tablename#n" and just "tablename"
+		if (inMemoryCSV==null && occurrenceSuffix != null) {
+			inMemoryCSV = MockJdbcDriver.getInMemoryTableResource(tableName+occurrenceSuffix);
+		}
 		if (inMemoryCSV==null) {
-			inMemoryCSV = MockJdbcDriver.getInMemoryTableResource(tableName);			
+			inMemoryCSV = MockJdbcDriver.getInMemoryTableResource(tableName);
 		} // if any in memory CSV is found read it directly: a String needs no charset
 		if (inMemoryCSV!=null) {
 			inMemoryReader = new StringReader(inMemoryCSV);

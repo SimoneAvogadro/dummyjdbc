@@ -170,6 +170,31 @@ ResultSet third  = c.createStatement().executeQuery("anything");    // step 2 ->
 * For `executeUpdate`, a step resource whose content is a plain number is returned as the *affected rows count*
   (e.g. `addInMemoryTableResource(3, "5")`).
 
+### Repeated use of the same resource (`users#1`, `users#2`)
+
+When the **same query** must return different data each time it runs, number the resource with `#n`: `users#1` is used
+the first time `users` is queried, `users#2` the second time, and so on. When the numbered resource does not exist the
+driver falls back to `users`, so you only define the occurrences that differ:
+
+```java
+MockJdbcDriver.reset();
+MockJdbcDriver.addInMemoryTableResource("users#1", "name\nJohn");           // first SELECT * FROM users
+MockJdbcDriver.addInMemoryTableResource("users#2", "name\nJohn\nMary");     // second one
+MockJdbcDriver.addInMemoryTableResource("users",   "name");                  // third and later: no rows
+```
+
+* There is **one counter per resource name** (table, `-- TESTCASE:` name or stored procedure), case insensitive
+  (`FROM Users` and `FROM users` count together), shared by queries and writes: a SELECT on `users` followed by an
+  INSERT into `users` is occurrence 1 and then 2 (see [section 6](#6-capturing-statement-parameters)).
+* With parameters the lookup is `users?Smith,34#2` → `users?Smith,34` → `users#2` → `users`: the counter does not depend
+  on the parameters.
+* A `PreparedStatement.execute()` that both returns a result and captures parameters (e.g. `EXEC my_proc ?`) counts as
+  one use: it reads `my_proc#n` and writes `my_proc_PARAMS#n` with the same `n`.
+* Steps are not numbered (they already are a sequence), and `DatabaseMetaData.getColumns` does not count.
+* The counters (and the step counter) belong to the **current thread**. They restart with `MockJdbcDriver.reset()`
+  (which also clears the resources) or `MockJdbcDriver.resetCounters()` (counters only). Inside Boomi they also restart
+  automatically, see [section 11](#11-running-inside-boomi).
+
 ---
 
 ## 6. Capturing statement parameters
@@ -205,7 +230,11 @@ Assert.assertEquals("hello,30", params);
 * With an explicit `-- TESTCASE: name` comment the key is `name_PARAMS`.
 * The table name in `INSERT INTO <table> (` / `UPDATE <table>` / `DELETE FROM <table>` is matched with letters only (`[a-zA-Z]`),
   so names with digits or underscores are not captured by name – use a `-- TESTCASE:` comment for those.
-* Only the latest call is kept per name; read it right after the statement runs.
+* `<name>_PARAMS` always holds the **latest** parameters (the common single-write test). Every write is also kept as
+  `<name>_PARAMS#n`, numbered with the counter of the name
+  ([repeated use](#repeated-use-of-the-same-resource-users1-users2)): two INSERTs into `users` give
+  `users_PARAMS#1`, `users_PARAMS#2`, and `users_PARAMS` equal to the second one. Statements on a step resource are not
+  numbered.
 * Batches (`addBatch()` + `executeBatch()`) run the statement once per parameter set, each run captured as above (so
   the last set is the one you read); `executeBatch()` returns `1` per recognised statement, `0` otherwise.
 * A parameter that was not set is left empty (`{? = call my_proc(?)}` with only the second one set gives `,a`).
@@ -400,8 +429,8 @@ For each executed query the driver tries, in this order:
 5. **Pure `SELECT`** without a table: one row with value `1`.
 6. Otherwise an empty result set.
 
-For a given name, the data source is chosen as: `name?params` (in memory) → `name` (in memory) → registered file →
-`/tables/name.csv`. Inside Boomi, each in-memory lookup that finds nothing also checks the matching Dynamic Process Property
+For a given name used for the n-th time, the data source is chosen as: `name?params#n` → `name?params` → `name#n` →
+`name` (in memory) → registered file → `/tables/name.csv`. Inside Boomi, each in-memory lookup that finds nothing also checks the matching Dynamic Process Property
 ([section 11](#11-running-inside-boomi)).
 
 Tips:
@@ -528,7 +557,26 @@ String params = ExecutionUtil.getDynamicProcessProperty("mockjdbc_users_params")
 ```
 
 The value is the same one returned by `MockJdbcDriver.getInMemoryTableResource("users_PARAMS")`, which keeps working
-as before.
+as before. The numbered copies are set too: `mockjdbc_users_PARAMS#n` and `mockjdbc_users_params#n`.
+
+### Counters across executions
+
+The occurrence counters (`users#1`, `users#2`, ...) and the step counter belong to the thread running the statement,
+and the Boomi runtime reuses threads across executions. So that every execution starts from 1:
+
+* **Automatic:** before each statement the driver reads the execution ID
+  (`ExecutionUtil.getRuntimeExecutionProperty("EXECUTION_ID")`); when it differs from the one of the previous statement
+  on the same thread, the counters restart.
+* **On request:** set the Dynamic Process Property **`mockjdbc#RESET`** (or `mockjdbc#reset`) to any non-blank value,
+  e.g. between two scenarios tested in the same execution. Before the next statement the driver restarts the counters
+  and empties the property (Boomi has no way to delete a property). The statement that sees the request becomes step 0.
+
+```groovy
+ExecutionUtil.setDynamicProcessProperty("mockjdbc#RESET", "true", false)   // next statement starts again from users#1
+```
+
+Limit: if one execution runs statements on several threads at the same time (e.g. parallel processing), each thread
+has its own counters.
 
 ---
 
@@ -544,6 +592,7 @@ as before.
 | `getInMemoryTableResourceForCurrentStep()` | Read the resource of the current step |
 | `addTableResource(String table, File csv)` | Register a CSV file for a table |
 | `clearInMemoryTableResources()` | Remove all in-memory datasets |
-| `reset()` | Clear all resources and restart step counting |
+| `reset()` | Clear all resources and restart the step and occurrence counters |
+| `resetCounters()` | Restart the step and occurrence counters of the current thread, keeping the resources |
 | `setDateFormat / setTimeFormat / setTimestampFormat(String)` | Formats used to parse CSV dates and render parameters |
 | `BoomiExecutionUtil.isBoomi()` | `true` when the Boomi runtime classes are found ([section 11](#11-running-inside-boomi)) |

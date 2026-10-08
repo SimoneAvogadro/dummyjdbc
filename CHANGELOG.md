@@ -4,6 +4,10 @@ Change Log
 Unreleased
 ----------------------------
 
+ * Repeated use of a resource: `users#1`, `users#2`, ... are returned by the 1st, 2nd, ... query on `users` (falling back
+   to `users`), and every write is also kept as `<name>_PARAMS#n`; one counter per name, per thread, restarted by
+   `reset()` / `resetCounters()` and, inside Boomi, automatically on a new execution ID or with the property `mockjdbc#RESET`
+ * The step counter is per thread
  * Project renamed from dummyjdbc to **mockjdbc**: package `me.avogadro.mockjdbc`, driver class
    `me.avogadro.mockjdbc.MockJdbcDriver` (all `Dummy*` classes are now `Mock*`), Maven coordinates
    `me.avogadro.mockjdbc:mockjdbc`, Boomi property prefix `mockjdbc_`, metadata product name `MockJDBC`

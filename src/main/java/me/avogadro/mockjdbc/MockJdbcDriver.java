@@ -44,12 +44,27 @@ public final class MockJdbcDriver implements Driver {
 	public static final int VERSION_MAJOR = 1;
 	public static final int VERSION_MINOR = 5;
 	
+	/** Separator of the occurrence number in resource names: <code>users#2</code> is the second use of <code>users</code> */
+	public static final String OCCURRENCE_SEPARATOR = "#";
+
 	/**
-	 * Counter for the number of statements being executed
-	 * Used to give a sequential number to each query
-	 * Starts from -1 because it's pre-incremented once each statement is created
+	 * Counters of the current thread: the step (number of statements created, starting from -1 because it is
+	 * pre-incremented when each statement is created) and the occurrences (how many times each resource name was
+	 * queried or written). Inside Boomi they are reset automatically when the execution changes.
 	 */
-	static int step = -1;
+	private static final class Counters {
+		int step = -1;
+		final Map<String, Integer> occurrences = new HashMap<String, Integer>();
+		/** Boomi execution these counters belong to (null outside Boomi) */
+		String executionId;
+	}
+
+	private static final ThreadLocal<Counters> COUNTERS = new ThreadLocal<Counters>() {
+		@Override
+		protected Counters initialValue() {
+			return new Counters();
+		}
+	};
 	
 	/**
 	 * CSV files stored into memory 
@@ -94,7 +109,7 @@ public final class MockJdbcDriver implements Driver {
 	 * Reset the internal data structures to restart counting
 	 */
 	public static void reset() {
-		step = -1;
+		resetCounters();
 		inMemoryTableResources = new HashMap<String,String>();
 		// keep the per-database maps (connections hold a reference to them), just empty them
 		synchronized (tableResources) {
@@ -104,8 +119,70 @@ public final class MockJdbcDriver implements Driver {
 		}
 	}
 	
+	/**
+	 * Restarts the step and the occurrence counters of the current thread, keeping all the resources.
+	 * Inside Boomi this also happens when the Dynamic Process Property <code>mockjdbc#RESET</code> is set and when the
+	 * execution ID changes.
+	 */
+	public static void resetCounters() {
+		resetCounters(-1);
+	}
+
+	private static void resetCounters(int step) {
+		Counters counters = COUNTERS.get();
+		counters.step = step;
+		counters.occurrences.clear();
+	}
+
 	public static String getStepName() {
-		return STEP_PREFIX+step;
+		return STEP_PREFIX+COUNTERS.get().step;
+	}
+
+	/**
+	 * Increments and returns the occurrence counter of a resource name (case insensitive): 1 the first time a table,
+	 * test case or procedure is queried or written, 2 the second time, ...
+	 *
+	 * @param resourceName the resource name, without parameters
+	 * @return the occurrence number, starting from 1
+	 */
+	public static int nextOccurrence(String resourceName) {
+		Map<String, Integer> occurrences = COUNTERS.get().occurrences;
+		String key = resourceName.toLowerCase().trim();
+		Integer previous = occurrences.get(key);
+		int occurrence = previous == null ? 1 : previous + 1;
+		occurrences.put(key, occurrence);
+		return occurrence;
+	}
+
+	/**
+	 * Called before each statement is executed: inside Boomi resets the counters when requested (see
+	 * {@link #resetCounters()}); the statement being executed then becomes step 0.
+	 */
+	public static void beforeExecution() {
+		checkAutomaticReset(0);
+	}
+
+	/**
+	 * Inside Boomi resets the counters when the execution ID changed (a pooled thread reused by another execution) or
+	 * when the Dynamic Process Property <code>mockjdbc#RESET</code> is set (it is then emptied).
+	 */
+	private static void checkAutomaticReset(int stepAfterReset) {
+		if (!BoomiExecutionUtil.isBoomi()) {
+			return;
+		}
+		Counters counters = COUNTERS.get();
+		boolean reset = false;
+		String executionId = BoomiExecutionUtil.getExecutionId();
+		if (executionId != null && !executionId.equals(counters.executionId)) {
+			counters.executionId = executionId;
+			reset = true;
+		}
+		if (BoomiExecutionUtil.consumeResetRequest()) {
+			reset = true;
+		}
+		if (reset) {
+			resetCounters(stepAfterReset);
+		}
 	}
 
 	/**
@@ -306,7 +383,8 @@ public final class MockJdbcDriver implements Driver {
 	 * Signal to update to the next step
 	 */
 	public static void nextStep() {
-		step++;
+		checkAutomaticReset(-1);
+		COUNTERS.get().step++;
 	}
 
 

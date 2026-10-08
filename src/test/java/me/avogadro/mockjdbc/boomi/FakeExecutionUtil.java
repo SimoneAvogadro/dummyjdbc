@@ -10,6 +10,7 @@ public final class FakeExecutionUtil {
 
 	static final Map<String, String> PROPERTIES = new HashMap<String, String>();
 	static final Map<String, Boolean> PERSIST_FLAGS = new HashMap<String, Boolean>();
+	static String executionId;
 
 	private FakeExecutionUtil() {
 	}
@@ -18,13 +19,18 @@ public final class FakeExecutionUtil {
 		return PROPERTIES.get(key);
 	}
 
-	public static void setDynamicProcessProperty(String key, String value, boolean persist) {
+	public static void setDynamicProcessProperty(String key, String value, Boolean persist) {
 		PROPERTIES.put(key, value);
 		PERSIST_FLAGS.put(key, persist);
+	}
+
+	public static String getRuntimeExecutionProperty(String key) {
+		return "EXECUTION_ID".equals(key) ? executionId : null;
 	}
 
 	static void clear() {
 		PROPERTIES.clear();
 		PERSIST_FLAGS.clear();
+		executionId = null;
 	}
 }

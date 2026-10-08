@@ -25,9 +25,17 @@ public final class BoomiExecutionUtil {
 	/** Prefix of the Dynamic Process Properties read and written by the driver */
 	public static final String PROPERTY_PREFIX = "mockjdbc_";
 
+	/** Dynamic Process Property requesting a reset of the counters (also read in lower case) */
+	public static final String RESET_PROPERTY = "mockjdbc#RESET";
+
+	/** Runtime execution property identifying the current execution */
+	public static final String EXECUTION_ID_PROPERTY = "EXECUTION_ID";
+
 	private static boolean initialized = false;
 	private static Method getDynamicProcessPropertyMethod;
 	private static Method setDynamicProcessPropertyMethod;
+	/** optional: ExecutionUtil.getRuntimeExecutionProperty(String) */
+	private static Method getRuntimeExecutionPropertyMethod;
 
 	private BoomiExecutionUtil() {
 		// static utility
@@ -97,6 +105,42 @@ public final class BoomiExecutionUtil {
 		return ok;
 	}
 
+	/**
+	 * @return the Boomi execution ID (<code>ExecutionUtil.getRuntimeExecutionProperty("EXECUTION_ID")</code>), or
+	 *         <code>null</code> when not running inside Boomi or not available
+	 */
+	public static String getExecutionId() {
+		if (!isBoomi() || getRuntimeExecutionPropertyMethod == null) {
+			return null;
+		}
+		try {
+			Object value = getRuntimeExecutionPropertyMethod.invoke(null, EXECUTION_ID_PROPERTY);
+			return trimToNull(value == null ? null : value.toString());
+		} catch (IllegalAccessException | InvocationTargetException e) {
+			LOGGER.debug("Unable to read the execution ID", unwrap(e));
+			return null;
+		}
+	}
+
+	/**
+	 * Checks the Dynamic Process Property {@value #RESET_PROPERTY} (then in lower case): when set and not blank it is
+	 * emptied (Boomi has no method to remove a property) and <code>true</code> is returned.
+	 *
+	 * @return <code>true</code> if a reset of the counters was requested
+	 */
+	public static boolean consumeResetRequest() {
+		if (!isBoomi()) {
+			return false;
+		}
+		for (String name : new String[] { RESET_PROPERTY, RESET_PROPERTY.toLowerCase() }) {
+			if (trimToNull(getDynamicProcessProperty(name)) != null) {
+				setDynamicProcessProperty(name, "");
+				return true;
+			}
+		}
+		return false;
+	}
+
 	private static String trimToNull(String value) {
 		if (value == null) {
 			return null;
@@ -161,6 +205,7 @@ public final class BoomiExecutionUtil {
 		initialized = true;
 		getDynamicProcessPropertyMethod = null;
 		setDynamicProcessPropertyMethod = null;
+		getRuntimeExecutionPropertyMethod = null;
 
 		Class<?> executionUtil = findClass(className);
 		if (executionUtil == null) {
@@ -180,6 +225,9 @@ public final class BoomiExecutionUtil {
 					&& params[0].isAssignableFrom(String.class) && params[1].isAssignableFrom(String.class)
 					&& (params[2] == boolean.class || params[2] == Boolean.class)) {
 				setDynamicProcessPropertyMethod = method;
+			} else if ("getRuntimeExecutionProperty".equals(method.getName()) && params.length == 1
+					&& params[0].isAssignableFrom(String.class)) {
+				getRuntimeExecutionPropertyMethod = method;
 			}
 		}
 
