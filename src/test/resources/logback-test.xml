@@ -5,7 +5,7 @@
 		</encoder>
 	</appender>
 	
-	<logger name="me.avogadro.dummyjdbc" level="TRACE"/>
+	<logger name="me.avogadro.mockjdbc" level="TRACE"/>
 	
 	<root level="debug">
 		<appender-ref ref="STDOUT" />

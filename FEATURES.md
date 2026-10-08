@@ -1,6 +1,6 @@
-# dummyjdbc – Features
+# mockjdbc – Features
 
-dummyjdbc is a JDBC driver that never talks to a real database. Your code opens a normal
+mockjdbc (formerly dummyjdbc) is a JDBC driver that never talks to a real database. Your code opens a normal
 `java.sql.Connection`, runs normal SQL, and gets back the result sets *you* have prepared –
 either **in memory** (a CSV string inside your test) or **on file** (CSV files on disk / classpath).
 
@@ -29,7 +29,7 @@ Add the dependency (see the README for the current coordinates) and make sure th
 is loaded; it registers itself with `DriverManager` on load:
 
 ```java
-Class.forName(DummyJdbcDriver.class.getCanonicalName());
+Class.forName(MockJdbcDriver.class.getCanonicalName());
 Connection connection = DriverManager.getConnection("any");
 ```
 
@@ -44,10 +44,10 @@ Register a CSV string under a name, then run a query that resolves to that name.
 The first line is the header, the following lines are rows.
 
 ```java
-Class.forName(DummyJdbcDriver.class.getCanonicalName());
-DummyJdbcDriver.reset();                       // start from a clean state
+Class.forName(MockJdbcDriver.class.getCanonicalName());
+MockJdbcDriver.reset();                       // start from a clean state
 
-DummyJdbcDriver.addInMemoryTableResource("users",
+MockJdbcDriver.addInMemoryTableResource("users",
         "name, age\n" +
         "John, 20\n" +
         "Mary, 31");
@@ -68,7 +68,7 @@ The name (`users`) is the **table name found in the SQL** (`FROM users`), matche
 Instead of a `String` you can also pass an `InputStream`, e.g. a file from `src/test/resources`:
 
 ```java
-DummyJdbcDriver.addInMemoryTableResource("users",
+MockJdbcDriver.addInMemoryTableResource("users",
         getClass().getResourceAsStream("/users.csv"));
 ```
 
@@ -98,7 +98,7 @@ SELECT * FROM TableUsedEverywhere                  -- resource: hello1
 ```
 
 ```java
-DummyJdbcDriver.addInMemoryTableResource("Hello1", "id, label\n1, first");
+MockJdbcDriver.addInMemoryTableResource("Hello1", "id, label\n1, first");
 ```
 
 The comment wins over the table name. The name is the rest of the first line, trimmed; the query can continue on as many
@@ -113,7 +113,7 @@ as tables. The call can span several lines.
 ### Fallbacks
 
 * `SELECT 1`-style queries without a `FROM` return a single row with the value `1`.
-* If nothing is found, the driver returns an empty "dummy" result set instead of failing.
+* If nothing is found, the driver returns an empty result set instead of failing.
 
 Names are case-insensitive for in-memory resources.
 
@@ -125,8 +125,8 @@ With a `PreparedStatement` the driver also tries a more specific name that inclu
 `<resource>?<param1>,<param2>,...`. If it exists it is used, otherwise it falls back to `<resource>`.
 
 ```java
-DummyJdbcDriver.addInMemoryTableResource("mytable?Smith,34", "name\nJohn Smith");
-DummyJdbcDriver.addInMemoryTableResource("mytable",          "name\n(anybody else)");
+MockJdbcDriver.addInMemoryTableResource("mytable?Smith,34", "name\nJohn Smith");
+MockJdbcDriver.addInMemoryTableResource("mytable",          "name\n(anybody else)");
 
 PreparedStatement ps = connection.prepareStatement(
         "SELECT name FROM mytable WHERE surname = ? AND age = ?");
@@ -151,10 +151,10 @@ Sometimes you don't care what the SQL says – you only know *"the first query r
 Register results by the **execution step** instead of by name:
 
 ```java
-DummyJdbcDriver.reset();                       // resets the step counter to the beginning
-DummyJdbcDriver.addInMemoryTableResource(0, "name, age\nJohn, 20");
-DummyJdbcDriver.addInMemoryTableResource(1, "id, country\n1, Italy\n2, USA");
-DummyJdbcDriver.addInMemoryTableResource(2, "id, make, model\n1, Mazda, CX-5");
+MockJdbcDriver.reset();                       // resets the step counter to the beginning
+MockJdbcDriver.addInMemoryTableResource(0, "name, age\nJohn, 20");
+MockJdbcDriver.addInMemoryTableResource(1, "id, country\n1, Italy\n2, USA");
+MockJdbcDriver.addInMemoryTableResource(2, "id, make, model\n1, Mazda, CX-5");
 
 Connection c = DriverManager.getConnection("any");
 
@@ -166,7 +166,7 @@ ResultSet third  = c.createStatement().executeQuery("anything");    // step 2 ->
 * The step counter increases **each time a statement is created** (`createStatement` / `prepareStatement`),
   starting from 0 after `reset()`.
 * A step resource has the **highest priority**: table name and `-- TESTCASE:` comments are ignored for that statement.
-* Call `DummyJdbcDriver.reset()` at the start of every test, otherwise the counter carries over.
+* Call `MockJdbcDriver.reset()` at the start of every test, otherwise the counter carries over.
 * For `executeUpdate`, a step resource whose content is a plain number is returned as the *affected rows count*
   (e.g. `addInMemoryTableResource(3, "5")`).
 
@@ -196,7 +196,7 @@ ps.setString(1, "hello");
 ps.setInt(2, 30);
 ps.execute();
 
-String params = DummyJdbcDriver.getInMemoryTableResource("users_PARAMS");
+String params = MockJdbcDriver.getInMemoryTableResource("users_PARAMS");
 Assert.assertEquals("hello,30", params);
 ```
 
@@ -219,7 +219,7 @@ For larger or shared data, keep the CSV in a file. There are three ways to wire 
 ### a) Register a file for a table
 
 ```java
-DummyJdbcDriver.addTableResource("test_table",
+MockJdbcDriver.addTableResource("test_table",
         new File(getClass().getResource("/test_table.csv").toURI()));
 
 Connection c = DriverManager.getConnection("any");
@@ -237,7 +237,7 @@ ID, country_name, country_iso
 
 Table names are matched case-insensitively, and you can register as many tables as you need by calling
 `addTableResource` repeatedly. Tables can also be registered after the connection has been opened, and
-`DummyJdbcDriver.reset()` does not detach connections that are already open.
+`MockJdbcDriver.reset()` does not detach connections that are already open.
 
 ### b) The `/tables/` classpath folder (zero setup)
 
@@ -367,9 +367,9 @@ What this means in practice:
 **Using ISO-like formats instead.** Set your own patterns once per thread (e.g. in `@Before`):
 
 ```java
-DummyJdbcDriver.setDateFormat("yyyy-MM-dd");               // 2012-05-17
-DummyJdbcDriver.setTimeFormat("HH:mm:ss");                 // 14:30:15
-DummyJdbcDriver.setTimestampFormat("yyyy-MM-dd HH:mm:ss"); // 2012-05-17 14:30:15
+MockJdbcDriver.setDateFormat("yyyy-MM-dd");               // 2012-05-17
+MockJdbcDriver.setTimeFormat("HH:mm:ss");                 // 14:30:15
+MockJdbcDriver.setTimestampFormat("yyyy-MM-dd HH:mm:ss"); // 2012-05-17 14:30:15
 ```
 
 * The formats are **per thread**: they apply only to the thread that called the setter. Other threads (executors, async code)
@@ -383,7 +383,7 @@ DummyJdbcDriver.setTimestampFormat("yyyy-MM-dd HH:mm:ss"); // 2012-05-17 14:30:1
 | `Time`      | `HH:mm`               | `14:30`             |
 | `Timestamp` | `yyyyMMdd HHmmss.SSS` | `20120517 143000.000` |
 
-Change them (per thread) with `DummyJdbcDriver.setDateFormat(...)`, `setTimeFormat(...)`, `setTimestampFormat(...)`
+Change them (per thread) with `MockJdbcDriver.setDateFormat(...)`, `setTimeFormat(...)`, `setTimestampFormat(...)`
 using `SimpleDateFormat` patterns. The same formats are used to render date parameters in the
 `?params` / `_PARAMS` strings.
 
@@ -398,7 +398,7 @@ For each executed query the driver tries, in this order:
 3. **Table name** after `FROM`.
 4. **Stored procedure** name after `EXEC`/`EXECUTE`.
 5. **Pure `SELECT`** without a table: one row with value `1`.
-6. Otherwise an empty dummy result set.
+6. Otherwise an empty result set.
 
 For a given name, the data source is chosen as: `name?params` (in memory) → `name` (in memory) → registered file →
 `/tables/name.csv`. Inside Boomi, each in-memory lookup that finds nothing also checks the matching Dynamic Process Property
@@ -406,12 +406,12 @@ For a given name, the data source is chosen as: `name?params` (in memory) → `n
 
 Tips:
 
-* Call `DummyJdbcDriver.reset()` in your `@Before` – the driver keeps **static** state (resources and step counter).
-* `DummyJdbcDriver.clearInMemoryTableResources()` clears only the in-memory data.
+* Call `MockJdbcDriver.reset()` in your `@Before` – the driver keeps **static** state (resources and step counter).
+* `MockJdbcDriver.clearInMemoryTableResources()` clears only the in-memory data.
 * Not every JDBC method is implemented; unsupported ones throw `UnsupportedOperationException`.
 * `setMaxRows(n)` limits the rows returned by the next queries of the statement (0 = no limit).
 * No key is ever generated: `getGeneratedKeys()` returns an empty result set (never `null`).
-* `Connection.getMetaData()`: product and driver name are `DummyJDBC`, version `1.5`, the identifier quote string is a
+* `Connection.getMetaData()`: product and driver name are `MockJDBC`, version `1.5`, the identifier quote string is a
   space (identifiers are never quoted). `getColumns(catalog, schema, table, columnPattern)` returns one row per column
   of the table's CSV header, with the table found exactly as for a query (in memory, Boomi property, file); a header-only
   CSV is enough. `DATA_TYPE`/`TYPE_NAME` come from the `|type` of the header (`VARCHAR` when none), `DECIMAL_DIGITS` is
@@ -431,7 +431,7 @@ back by the process.
 
 ### Installation
 
-Use the jar `dummyjdbc-<version>.jar` produced by `mvn package` and upload its runtime dependencies to Boomi as well:
+Use the jar `mockjdbc-<version>.jar` produced by `mvn package` and upload its runtime dependencies to Boomi as well:
 
 * `net.sf.opencsv:opencsv` 2.3;
 * `org.aspectj:aspectjrt` 1.9.22.1 (the driver classes are woven with the AspectJ tracing aspect and do not load
@@ -440,7 +440,7 @@ Use the jar `dummyjdbc-<version>.jar` produced by `mvn package` and upload its r
 
 In the Database connection choose a custom driver with:
 
-* driver class `me.avogadro.dummyjdbc.DummyJdbcDriver`;
+* driver class `me.avogadro.mockjdbc.MockJdbcDriver`;
 * connection URL `any` (or `jdbc::mock::<dir>`, see [section 8](#8-several-databases-with-jdbc-urls)).
 
 The Database V2 connector reads the connection metadata before running queries
@@ -449,7 +449,7 @@ The Database V2 connector reads the connection metadata before running queries
 according to the column type, so:
 
 * **define every table the connector writes to or filters on**, even with the header only, e.g. the property
-  `dummyjdbc_payments` = `id|integer, amount|double, note` (use the `|type` to get numbers bound as numbers);
+  `mockjdbc_payments` = `id|integer, amount|double, note` (use the `|type` to get numbers bound as numbers);
 * **every field of the input document must be a column of that header**: once the column types are known the connector
   fails (NullPointerException) on a field that has no matching column.
 
@@ -461,28 +461,28 @@ The driver looks for the Boomi class `com.boomi.execution.ExecutionUtil` on the 
   `ExecutionUtil.getDynamicProcessProperty(name)` and `ExecutionUtil.setDynamicProcessProperty(name, value, false)`.
 * If the class is not found, Boomi support is off and the driver behaves exactly as described in the rest of this guide.
 
-The calls go through Java reflection (`me.avogadro.dummyjdbc.boomi.BoomiExecutionUtil`), so the driver has **no
+The calls go through Java reflection (`me.avogadro.mockjdbc.boomi.BoomiExecutionUtil`), so the driver has **no
 dependency on Boomi** and the same jar works everywhere. Errors while calling Boomi are logged and ignored; they never
 make a query fail.
 
 ### Property names
 
-Every resource maps to a Dynamic Process Property named with the prefix `dummyjdbc_` followed by the resource name
+Every resource maps to a Dynamic Process Property named with the prefix `mockjdbc_` followed by the resource name
 **as you write it** in your SQL or Java code, so the names are the same whether you work "via Java" or "via Boomi".
 
 Boomi property names are case-sensitive while the driver is not, so when **reading** a resource the driver tries:
 
-1. the name exactly as written, e.g. `-- TESTCASE: T_014a` → `dummyjdbc_T_014a`;
-2. then the same name in lower case → `dummyjdbc_t_014a`.
+1. the name exactly as written, e.g. `-- TESTCASE: T_014a` → `mockjdbc_T_014a`;
+2. then the same name in lower case → `mockjdbc_t_014a`.
 
 The first one that is set and not blank is used.
 
 | Driver resource | Dynamic Process Property (read: as written, then lower case) |
 |-----------------|-----------------------------------------------|
-| table in `SELECT * FROM Users` | `dummyjdbc_Users`, then `dummyjdbc_users` |
-| `-- TESTCASE: T_014a` | `dummyjdbc_T_014a`, then `dummyjdbc_t_014a` |
-| table with parameters `mytable?Smith,34` ([section 4](#4-different-results-for-different-parameters)) | `dummyjdbc_mytable?Smith,34`, then `dummyjdbc_mytable?smith,34` |
-| step 0 ([section 5](#5-step-based-results-a-scripted-sequence)) | `dummyjdbc_##STEP0`, then `dummyjdbc_##step0` |
+| table in `SELECT * FROM Users` | `mockjdbc_Users`, then `mockjdbc_users` |
+| `-- TESTCASE: T_014a` | `mockjdbc_T_014a`, then `mockjdbc_t_014a` |
+| table with parameters `mytable?Smith,34` ([section 4](#4-different-results-for-different-parameters)) | `mockjdbc_mytable?Smith,34`, then `mockjdbc_mytable?smith,34` |
+| step 0 ([section 5](#5-step-based-results-a-scripted-sequence)) | `mockjdbc_##STEP0`, then `mockjdbc_##step0` |
 
 When **writing** captured parameters the driver sets two properties with the same value: the table (or test case) as
 written in the SQL followed by `_PARAMS` in upper case, exactly like the in-memory resource of
@@ -490,13 +490,13 @@ written in the SQL followed by `_PARAMS` in upper case, exactly like the in-memo
 
 | Statement | Dynamic Process Properties (written) |
 |-----------|--------------------------------------|
-| `INSERT INTO users (...)` | `dummyjdbc_users_PARAMS` and `dummyjdbc_users_params` |
-| `UPDATE Users SET ...` | `dummyjdbc_Users_PARAMS` and `dummyjdbc_users_params` |
-| `-- TESTCASE: T_014a` + any statement but a SELECT | `dummyjdbc_T_014a_PARAMS` and `dummyjdbc_t_014a_params` |
-| `EXEC My_Proc ?` | `dummyjdbc_My_Proc_PARAMS` and `dummyjdbc_my_proc_params` |
+| `INSERT INTO users (...)` | `mockjdbc_users_PARAMS` and `mockjdbc_users_params` |
+| `UPDATE Users SET ...` | `mockjdbc_Users_PARAMS` and `mockjdbc_users_params` |
+| `-- TESTCASE: T_014a` + any statement but a SELECT | `mockjdbc_T_014a_PARAMS` and `mockjdbc_t_014a_params` |
+| `EXEC My_Proc ?` | `mockjdbc_My_Proc_PARAMS` and `mockjdbc_my_proc_params` |
 
-> **Suggested when working with Boomi: write every property name in lower case** (`dummyjdbc_users`,
-> `dummyjdbc_t_014a`, `dummyjdbc_users_params`). The lower case name is always read and always written, whatever case
+> **Suggested when working with Boomi: write every property name in lower case** (`mockjdbc_users`,
+> `mockjdbc_t_014a`, `mockjdbc_users_params`). The lower case name is always read and always written, whatever case
 > the SQL uses, so your process does not depend on how a table or test case is spelled in the queries. The names "as
 > written" are there for users who keep the same case in Java and in Boomi.
 
@@ -507,15 +507,15 @@ Set a Dynamic Process Property with the CSV text as value, for example with a Se
 ```groovy
 import com.boomi.execution.ExecutionUtil
 
-ExecutionUtil.setDynamicProcessProperty("dummyjdbc_users", "name, age\nJohn, 20\nMary, 31", false)   // lower case: suggested
+ExecutionUtil.setDynamicProcessProperty("mockjdbc_users", "name, age\nJohn, 20\nMary, 31", false)   // lower case: suggested
 ```
 
-A later `SELECT * FROM users` run through a Database connector that uses dummyjdbc returns those two rows.
+A later `SELECT * FROM users` run through a Database connector that uses mockjdbc returns those two rows.
 
-* A resource added in memory with `DummyJdbcDriver.addInMemoryTableResource(...)` **wins** over the property; the
+* A resource added in memory with `MockJdbcDriver.addInMemoryTableResource(...)` **wins** over the property; the
   property is used only when nothing is registered in memory under that name.
 * An empty (or blank) property counts as not defined.
-* Remember the case rule above: `dummyjdbc_users` is found by `FROM users`, `FROM USERS` and `FROM Users`.
+* Remember the case rule above: `mockjdbc_users` is found by `FROM users`, `FROM USERS` and `FROM Users`.
 * The value follows the [CSV format](#9-csv-format-reference) (header first; `\n` between rows).
 
 ### Reading captured parameters in the process
@@ -524,10 +524,10 @@ Every time the driver captures the parameters of a statement ([section 6](#6-cap
 it also stores them in a Dynamic Process Property, **never persisted** across executions (`persist=false`):
 
 ```groovy
-String params = ExecutionUtil.getDynamicProcessProperty("dummyjdbc_users_params")   // lower case: suggested; e.g. "hello,30"
+String params = ExecutionUtil.getDynamicProcessProperty("mockjdbc_users_params")   // lower case: suggested; e.g. "hello,30"
 ```
 
-The value is the same one returned by `DummyJdbcDriver.getInMemoryTableResource("users_PARAMS")`, which keeps working
+The value is the same one returned by `MockJdbcDriver.getInMemoryTableResource("users_PARAMS")`, which keeps working
 as before.
 
 ---

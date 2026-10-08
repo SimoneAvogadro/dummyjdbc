@@ -1,9 +1,12 @@
-# dummyjdbc 
+# mockjdbc
 [![CircleCI](https://circleci.com/gh/SimoneAvogadro/dummyjdbc.svg?style=svg)](https://circleci.com/gh/SimoneAvogadro/dummyjdbc)
 
-dummyjdbc answers database requests of any application with dummy data to be independent of an existing database.
+> **mockjdbc** is the new name of this fork of [dummyjdbc](https://github.com/kaiwinter/dummyjdbc), the original project
+> by Kai Winter. The GitHub repository still keeps its old name for now.
 
-The library can either return dummy values, or values defined by you in a CSV file. The files are determined by the SQL query which makes this a very flexible tool. Also results of Stored Procedures can be mocked with data from CSV files.
+mockjdbc answers database requests of any application with mock data to be independent of an existing database.
+
+The library can either return default values, or values defined by you in a CSV file. The files are determined by the SQL query which makes this a very flexible tool. Also results of Stored Procedures can be mocked with data from CSV files.
 
 For a guided tour of all the key features (in-memory datasets, file-based datasets, step-based results, parameter matching, INSERT/UPDATE capture) see [FEATURES.md](FEATURES.md).
 
@@ -12,20 +15,20 @@ For more details please see the [Wiki](https://github.com/kaiwinter/dummyjdbc/wi
 ## New Methods in 1.5.0
 Refactored package in order to use `com.mindmercatis` instead of `com.googlecode` in order to proceed with the fork and keep releasing new versions.
 
-Three new methods have been added to `me.avogadro.dummyjdbc.DummyJdbcDriver` in order to support:
+Three new methods have been added to the driver (now `me.avogadro.mockjdbc.MockJdbcDriver`) in order to support:
 * Preparing tests as a simple sequence of expected table results
 
 ```java
-   Class.forName(DummyJdbcDriver.class.getCanonicalName());
-   DummyJdbcDriver.reset(); //reset the step counter 
-   DummyJdbcDriver.addInMemoryTableResource(0,	// result set for the first query which will be executed 
+   Class.forName(MockJdbcDriver.class.getCanonicalName());
+   MockJdbcDriver.reset(); //reset the step counter 
+   MockJdbcDriver.addInMemoryTableResource(0,	// result set for the first query which will be executed 
                      "name, age\n"+
                      "John, 20"  );
-   DummyJdbcDriver.addInMemoryTableResource(1,	// result set for the second query which will be executed 
+   MockJdbcDriver.addInMemoryTableResource(1,	// result set for the second query which will be executed 
                      "id, country\n"+
                      "1, Italy\n"+
                      "2, USA"  );
-   DummyJdbcDriver.addInMemoryTableResource(2,	// result set for the third query which will be executed 
+   MockJdbcDriver.addInMemoryTableResource(2,	// result set for the third query which will be executed 
                      "id, make, model, owner\n"+
                      "1, Mazda, CX-5, Mark Twain\n"+
                      "2, Ford, Focus, JF Kennedy"  );
@@ -59,9 +62,9 @@ public static String getInMemoryTableResource(String testID);
 ```java
 @Test
 public void testInMemoryCSVFromString() throws ClassNotFoundException, URISyntaxException, SQLException {
-   Class.forName(DummyJdbcDriver.class.getCanonicalName());
+   Class.forName(MockJdbcDriver.class.getCanonicalName());
 
-   DummyJdbcDriver.addInMemoryTableResource("TEST1", 
+   MockJdbcDriver.addInMemoryTableResource("TEST1", 
                      "\n"+
                      "name, age\n"+
                      "John, 20"+
@@ -130,7 +133,7 @@ E.g: when updating table `users` a new key will be added with name `users_PARAMS
 ### Sample code
 
 ```java
-        Class.forName(DummyJdbcDriver.class.getCanonicalName());
+        Class.forName(MockJdbcDriver.class.getCanonicalName());
 
         Connection connection = DriverManager.getConnection("any");
         PreparedStatement statement = connection.prepareStatement("INSERT INTO users (name,age) VALUES (?,?) ");
@@ -138,7 +141,7 @@ E.g: when updating table `users` a new key will be added with name `users_PARAMS
         statement.setString(1, "hello");
         statement.setInt(2, 30);
         status = statement.execute();
-        params = DummyJdbcDriver.getInMemoryTableResource("users_PARAMS");
+        params = MockJdbcDriver.getInMemoryTableResource("users_PARAMS");
         Assert.assertEquals("hello,30", params);
 ```
 

@@ -4,6 +4,9 @@ Change Log
 Unreleased
 ----------------------------
 
+ * Project renamed from dummyjdbc to **mockjdbc**: package `me.avogadro.mockjdbc`, driver class
+   `me.avogadro.mockjdbc.MockJdbcDriver` (all `Dummy*` classes are now `Mock*`), Maven coordinates
+   `me.avogadro.mockjdbc:mockjdbc`, Boomi property prefix `mockjdbc_`, metadata product name `MockJDBC`
  * Build: Java 8 target and AspectJ weaving with `dev.aspectj:aspectj-maven-plugin` 1.14 / AspectJ 1.9.22.1 (works on
    current JDKs); the runtime dependency `aspectjrt` moves to 1.9.22.1
  * Fixed: UPDATE without a `-- TESTCASE` comment was never captured; INSERT/UPDATE spanning several lines were not
@@ -27,8 +30,8 @@ Unreleased
    is implemented); `getObject()` returns the Java type of the declared column type
  * Driver version reported as 1.5 (was 1.0)
  * Boomi support through Dynamic Process Properties (detected at runtime via reflection, no dependency on Boomi):
-   tables can be provided as `dummyjdbc_<name>` properties (name as written, then lower case) and captured
-   INSERT/UPDATE parameters are exposed as `dummyjdbc_<table>_PARAMS` and `dummyjdbc_<table in lower case>_params`
+   tables can be provided as `mockjdbc_<name>` properties (name as written, then lower case) and captured
+   INSERT/UPDATE parameters are exposed as `mockjdbc_<table>_PARAMS` and `mockjdbc_<table in lower case>_params`
    (never persisted)
 
 Version 1.5.1
