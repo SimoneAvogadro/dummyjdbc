@@ -437,6 +437,8 @@ Tips:
 
 * Call `MockJdbcDriver.reset()` in your `@Before` – the driver keeps **static** state (resources and step counter).
 * `MockJdbcDriver.clearInMemoryTableResources()` clears only the in-memory data.
+* Containers that unload the driver can call `MockJdbcDriver.deregister()`: like every JDBC driver, mockjdbc registers
+  itself in `DriverManager`, which otherwise keeps its class loader (and its jar file) in use.
 * Not every JDBC method is implemented; unsupported ones throw `UnsupportedOperationException`.
 * `setMaxRows(n)` limits the rows returned by the next queries of the statement (0 = no limit).
 * No key is ever generated: `getGeneratedKeys()` returns an empty result set (never `null`).
@@ -600,5 +602,6 @@ has its own counters.
 | `clearInMemoryTableResources()` | Remove all in-memory datasets |
 | `reset()` | Clear all resources and restart the step and occurrence counters |
 | `resetCounters()` | Restart the step and occurrence counters of the current thread, keeping the resources |
+| `deregister()` | Remove the driver from `DriverManager` (for containers that unload it) |
 | `setDateFormat / setTimeFormat / setTimestampFormat(String)` | Formats used to parse CSV dates and render parameters |
 | `BoomiExecutionUtil.isBoomi()` | `true` when the Boomi runtime classes are found ([section 11](#11-running-inside-boomi)) |

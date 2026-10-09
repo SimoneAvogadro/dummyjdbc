@@ -1,6 +1,13 @@
 Change Log
 ==========
 
+Unreleased
+----------------------------
+
+ * The per-thread counters keep only JDK classes in their ThreadLocal: a driver class stored there kept the driver's
+   class loader (and its jar file) alive on long-lived pooled threads, preventing the runtime from replacing the jar
+ * `MockJdbcDriver.deregister()` removes the driver from `DriverManager`, for containers that unload it
+
 Version 2.0.0 (2026-10-08)
 ----------------------------
 

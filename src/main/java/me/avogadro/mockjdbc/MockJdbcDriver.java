@@ -52,19 +52,43 @@ public final class MockJdbcDriver implements Driver {
 	 * pre-incremented when each statement is created) and the occurrences (how many times each resource name was
 	 * queried or written). Inside Boomi they are reset automatically when the execution changes.
 	 */
-	private static final class Counters {
-		int step = -1;
-		final Map<String, Integer> occurrences = new HashMap<String, Integer>();
-		/** Boomi execution these counters belong to (null outside Boomi) */
-		String executionId;
+	private static final ThreadLocal<Map<String, Object>> COUNTERS = new ThreadLocal<Map<String, Object>>();
+
+	/*
+	 * Keys of the per-thread counters map. Only JDK classes (HashMap, Integer, String) are stored in the ThreadLocal:
+	 * a value of a driver class would keep the driver's class loader, and so its jar file, alive as long as the
+	 * (pooled, long-lived) thread runs, preventing the runtime from unloading or replacing the jar.
+	 */
+	/** Integer: current step */
+	private static final String STEP_KEY = "step";
+	/** HashMap&lt;String, Integer&gt;: occurrences per lower case resource name */
+	private static final String OCCURRENCES_KEY = "occurrences";
+	/** String: Boomi execution these counters belong to (absent outside Boomi) */
+	private static final String EXECUTION_ID_KEY = "executionId";
+
+	/** the counters of the current thread, created on first use */
+	private static Map<String, Object> counters() {
+		Map<String, Object> counters = COUNTERS.get();
+		if (counters == null) {
+			counters = new HashMap<String, Object>();
+			counters.put(STEP_KEY, Integer.valueOf(-1));
+			counters.put(OCCURRENCES_KEY, new HashMap<String, Integer>());
+			COUNTERS.set(counters);
+		}
+		return counters;
 	}
 
-	private static final ThreadLocal<Counters> COUNTERS = new ThreadLocal<Counters>() {
-		@Override
-		protected Counters initialValue() {
-			return new Counters();
-		}
-	};
+	private static int currentStep() {
+		return ((Integer) counters().get(STEP_KEY)).intValue();
+	}
+
+	@SuppressWarnings("unchecked")
+	private static Map<String, Integer> occurrences() {
+		return (Map<String, Integer>) counters().get(OCCURRENCES_KEY);
+	}
+
+	/** the instance registered in {@link DriverManager} by the static initializer */
+	private static final MockJdbcDriver REGISTERED_DRIVER = new MockJdbcDriver();
 	
 	/**
 	 * CSV files stored into memory 
@@ -99,7 +123,7 @@ public final class MockJdbcDriver implements Driver {
 	static {
 		try {
 			// Register this with the DriverManager
-			DriverManager.registerDriver(new MockJdbcDriver());
+			DriverManager.registerDriver(REGISTERED_DRIVER);
 		} catch (SQLException e) {
 			// ignore
 		}
@@ -129,13 +153,22 @@ public final class MockJdbcDriver implements Driver {
 	}
 
 	private static void resetCounters(int step) {
-		Counters counters = COUNTERS.get();
-		counters.step = step;
-		counters.occurrences.clear();
+		counters().put(STEP_KEY, Integer.valueOf(step));
+		occurrences().clear();
+	}
+
+	/**
+	 * Removes the driver from {@link DriverManager}, where the static initializer registered it. For containers that
+	 * unload the driver: a registered driver keeps its class loader (and its jar file) in use.
+	 *
+	 * @throws SQLException if the driver cannot be deregistered
+	 */
+	public static void deregister() throws SQLException {
+		DriverManager.deregisterDriver(REGISTERED_DRIVER);
 	}
 
 	public static String getStepName() {
-		return STEP_PREFIX+COUNTERS.get().step;
+		return STEP_PREFIX+currentStep();
 	}
 
 	/**
@@ -146,7 +179,7 @@ public final class MockJdbcDriver implements Driver {
 	 * @return the occurrence number, starting from 1
 	 */
 	public static int nextOccurrence(String resourceName) {
-		Map<String, Integer> occurrences = COUNTERS.get().occurrences;
+		Map<String, Integer> occurrences = occurrences();
 		String key = resourceName.toLowerCase().trim();
 		Integer previous = occurrences.get(key);
 		int occurrence = previous == null ? 1 : previous + 1;
@@ -170,11 +203,11 @@ public final class MockJdbcDriver implements Driver {
 		if (!BoomiExecutionUtil.isBoomi()) {
 			return;
 		}
-		Counters counters = COUNTERS.get();
+		Map<String, Object> counters = counters();
 		boolean reset = false;
 		String executionId = BoomiExecutionUtil.getExecutionId();
-		if (executionId != null && !executionId.equals(counters.executionId)) {
-			counters.executionId = executionId;
+		if (executionId != null && !executionId.equals(counters.get(EXECUTION_ID_KEY))) {
+			counters.put(EXECUTION_ID_KEY, executionId);
 			reset = true;
 		}
 		if (BoomiExecutionUtil.consumeResetRequest()) {
@@ -384,7 +417,7 @@ public final class MockJdbcDriver implements Driver {
 	 */
 	public static void nextStep() {
 		checkAutomaticReset(-1);
-		COUNTERS.get().step++;
+		counters().put(STEP_KEY, Integer.valueOf(currentStep() + 1));
 	}
 
 
