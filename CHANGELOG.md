@@ -6,7 +6,11 @@ Unreleased
 
  * The per-thread counters keep only JDK classes in their ThreadLocal: a driver class stored there kept the driver's
    class loader (and its jar file) alive on long-lived pooled threads, preventing the runtime from replacing the jar
- * `MockJdbcDriver.deregister()` removes the driver from `DriverManager`, for containers that unload it
+ * `MockJdbcDriver.deregister()` removes the driver from `DriverManager`, for containers that unload it (no effect when
+   not registered); `MockJdbcDriver.isRegistered()` tells whether it is registered
+ * Inside Boomi (class `com.boomi.execution.ExecutionManager` present) the driver no longer registers itself in
+   `DriverManager`, which kept the Custom Library class loader and its jars in use; a startup log line
+   (`java.util.logging`) tells whether the driver is registered
  * Fixed: a `/tables/<name>.csv` inside a jar on the classpath failed with "URI is not hierarchical" (also in the
    original dummyjdbc); it is now read from the jar, without caching so the jar is not kept open
 

@@ -441,8 +441,11 @@ Tips:
 
 * Call `MockJdbcDriver.reset()` in your `@Before` – the driver keeps **static** state (resources and step counter).
 * `MockJdbcDriver.clearInMemoryTableResources()` clears only the in-memory data.
-* Containers that unload the driver can call `MockJdbcDriver.deregister()`: like every JDBC driver, mockjdbc registers
-  itself in `DriverManager`, which otherwise keeps its class loader (and its jar file) in use.
+* Like every JDBC driver, mockjdbc registers itself in `DriverManager` when its class is loaded, **except inside
+  Boomi** ([section 11](#11-running-inside-boomi)). A registered driver keeps its class loader (and its jar file) in
+  use: containers that unload the driver can call `MockJdbcDriver.deregister()` (it does nothing when the driver is not
+  registered); `MockJdbcDriver.isRegistered()` tells which case applies. At startup the driver logs one line through
+  `java.util.logging`: `MockJDBC 2.0 registered in DriverManager: true` (or `false`).
 * Not every JDBC method is implemented; unsupported ones throw `UnsupportedOperationException`.
 * `setMaxRows(n)` limits the rows returned by the next queries of the statement (0 = no limit).
 * No key is ever generated: `getGeneratedKeys()` returns an empty result set (never `null`).
@@ -499,6 +502,13 @@ The driver looks for the Boomi class `com.boomi.execution.ExecutionUtil` on the 
 * If the class is found, Boomi support is on. The driver calls
   `ExecutionUtil.getDynamicProcessProperty(name)` and `ExecutionUtil.setDynamicProcessProperty(name, value, false)`.
 * If the class is not found, Boomi support is off and the driver behaves exactly as described in the rest of this guide.
+
+**No registration in `DriverManager` inside Boomi.** When the class `com.boomi.execution.ExecutionManager` is present
+the driver does not register itself in `DriverManager` (the container log shows
+`MockJDBC 2.0 registered in DriverManager: false`): Boomi instantiates the driver by class name and calls `connect()`
+directly, and a registered driver would keep the class loader of the Custom Library, and all its jars, in use. As a
+consequence, inside Boomi `DriverManager.getConnection(...)` (e.g. from a script) does not find mockjdbc: create the
+driver with `new me.avogadro.mockjdbc.MockJdbcDriver()` and call `connect("any", new Properties())`.
 
 The calls go through Java reflection (`me.avogadro.mockjdbc.boomi.BoomiExecutionUtil`), so the driver has **no
 dependency on Boomi** and the same jar works everywhere. Errors while calling Boomi are logged and ignored; they never
@@ -606,6 +616,7 @@ has its own counters.
 | `clearInMemoryTableResources()` | Remove all in-memory datasets |
 | `reset()` | Clear all resources and restart the step and occurrence counters |
 | `resetCounters()` | Restart the step and occurrence counters of the current thread, keeping the resources |
-| `deregister()` | Remove the driver from `DriverManager` (for containers that unload it) |
+| `deregister()` | Remove the driver from `DriverManager` (for containers that unload it); no effect when not registered |
+| `isRegistered()` | Whether the driver is registered in `DriverManager` (never inside Boomi) |
 | `setDateFormat / setTimeFormat / setTimestampFormat(String)` | Formats used to parse CSV dates and render parameters |
 | `BoomiExecutionUtil.isBoomi()` | `true` when the Boomi runtime classes are found ([section 11](#11-running-inside-boomi)) |

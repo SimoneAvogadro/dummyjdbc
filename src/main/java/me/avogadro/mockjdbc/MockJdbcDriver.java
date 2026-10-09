@@ -87,8 +87,11 @@ public final class MockJdbcDriver implements Driver {
 		return (Map<String, Integer>) counters().get(OCCURRENCES_KEY);
 	}
 
-	/** the instance registered in {@link DriverManager} by the static initializer */
+	/** the instance registered in {@link DriverManager} by the static initializer (outside Boomi) */
 	private static final MockJdbcDriver REGISTERED_DRIVER = new MockJdbcDriver();
+
+	/** true while {@link #REGISTERED_DRIVER} is registered in {@link DriverManager} */
+	private static volatile boolean registered = false;
 	
 	/**
 	 * CSV files stored into memory 
@@ -121,12 +124,26 @@ public final class MockJdbcDriver implements Driver {
 	private static Map<String, Map<String, File>> tableResources = Collections.synchronizedMap(new HashMap<String, Map<String, File>>());
 
 	static {
-		try {
-			// Register this with the DriverManager
-			DriverManager.registerDriver(REGISTERED_DRIVER);
-		} catch (SQLException e) {
-			// ignore
+		// Inside Boomi the driver is instantiated by class name and connect() is called directly: no registration in
+		// DriverManager, which would keep the driver's class loader (and the jars of its library) in use forever.
+		if (!BoomiExecutionUtil.isExecutionManagerAvailable()) {
+			try {
+				DriverManager.registerDriver(REGISTERED_DRIVER);
+				registered = true;
+			} catch (SQLException e) {
+				// ignore
+			}
 		}
+		Logger.getLogger(MockJdbcDriver.class.getName()).info("MockJDBC " + VERSION_MAJOR + "." + VERSION_MINOR
+				+ " registered in DriverManager: " + registered);
+	}
+
+	/**
+	 * @return <code>true</code> if the driver is registered in {@link DriverManager}: always outside Boomi (until
+	 *         {@link #deregister()}), never inside Boomi
+	 */
+	public static boolean isRegistered() {
+		return registered;
 	}
 	
 	/**
@@ -158,13 +175,17 @@ public final class MockJdbcDriver implements Driver {
 	}
 
 	/**
-	 * Removes the driver from {@link DriverManager}, where the static initializer registered it. For containers that
-	 * unload the driver: a registered driver keeps its class loader (and its jar file) in use.
+	 * Removes the driver from {@link DriverManager}, where the static initializer registered it (outside Boomi). For
+	 * containers that unload the driver: a registered driver keeps its class loader (and its jar file) in use. Does
+	 * nothing when the driver is not registered (e.g. inside Boomi, or already deregistered).
 	 *
 	 * @throws SQLException if the driver cannot be deregistered
 	 */
-	public static void deregister() throws SQLException {
-		DriverManager.deregisterDriver(REGISTERED_DRIVER);
+	public static synchronized void deregister() throws SQLException {
+		if (registered) {
+			DriverManager.deregisterDriver(REGISTERED_DRIVER);
+			registered = false;
+		}
 	}
 
 	public static String getStepName() {

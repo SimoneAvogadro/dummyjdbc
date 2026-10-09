@@ -315,6 +315,35 @@ public final class BoomiExecutionUtil {
 		}
 	}
 
+	/**
+	 * Tells whether the Boomi runtime class {@value #EXECUTION_MANAGER_CLASS} can be loaded, without initializing it.
+	 * Used when the driver class is initialized, before any Boomi method is needed.
+	 *
+	 * @return <code>true</code> when running inside Boomi
+	 */
+	public static boolean isExecutionManagerAvailable() {
+		return isClassAvailable(EXECUTION_MANAGER_CLASS);
+	}
+
+	static boolean isClassAvailable(String className) {
+		ClassLoader[] loaders = { Thread.currentThread().getContextClassLoader(),
+				BoomiExecutionUtil.class.getClassLoader() };
+		for (ClassLoader loader : loaders) {
+			if (loader == null) {
+				continue;
+			}
+			try {
+				Class.forName(className, false, loader);
+				return true;
+			} catch (ClassNotFoundException e) {
+				// try the next class loader
+			} catch (LinkageError e) {
+				LOGGER.debug("Unable to load {}", className, e);
+			}
+		}
+		return false;
+	}
+
 	private static Class<?> findClass(String className) {
 		ClassLoader[] loaders = { Thread.currentThread().getContextClassLoader(),
 				BoomiExecutionUtil.class.getClassLoader() };
