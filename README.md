@@ -4,166 +4,81 @@
 > **mockjdbc** is the new name of this fork of [dummyjdbc](https://github.com/kaiwinter/dummyjdbc), the original project
 > by Kai Winter. The GitHub repository still keeps its old name for now.
 
-**Current version: 2.0.1** – see the [CHANGELOG](CHANGELOG.md) for what changed (new name, Boomi support, metadata,
-NULL values, repeated queries and much more). Using it to unit test Boomi processes? Follow the
-[step-by-step tutorial](TUTORIAL.md).
+**Current version: 2.0.1** – see the [CHANGELOG](CHANGELOG.md).
 
-mockjdbc answers database requests of any application with mock data to be independent of an existing database.
+mockjdbc is a JDBC driver that never talks to a real database. Your code – or your **Boomi process** – runs its SQL as
+usual and gets back the data you prepared as CSV, while every INSERT, UPDATE, DELETE and stored procedure call is
+recorded, so that a test can check exactly what was written.
 
-The library can either return default values, or values defined by you in a CSV file. The files are determined by the SQL query which makes this a very flexible tool. Also results of Stored Procedures can be mocked with data from CSV files.
+## Unit testing Boomi processes
 
-For a guided tour of all the key features (in-memory datasets, file-based datasets, step-based results, parameter matching, INSERT/UPDATE capture) see [FEATURES.md](FEATURES.md).
+![A Boomi unit test: mock a table, run the process under test, check what it wrote](docs/images/boomi-unit-test-example.webp)
 
-For more details please see the [Wiki](https://github.com/kaiwinter/dummyjdbc/wiki)
+mockjdbc lets you unit test Boomi processes that use a database, without the database:
 
-## New Methods in 1.5.0
-Refactored package in order to use `com.mindmercatis` instead of `com.googlecode` in order to proceed with the fork and keep releasing new versions.
+* **provide the tables** as Dynamic Process Properties, e.g. `mockjdbc_users` = a CSV built with a Message step;
+* **run the process under test** unchanged: only for the test, environment or test extensions switch its database
+  connection to mockjdbc;
+* **check what it wrote**: the parameters of the INSERT/UPDATE/DELETE into `users` are in `mockjdbc_users_PARAMS`.
 
-Three new methods have been added to the driver (now `me.avogadro.mockjdbc.MockJdbcDriver`) in order to support:
-* Preparing tests as a simple sequence of expected table results
+It works with both the Database (Legacy) and the Database V2 connectors and needs no Boomi-specific setup: the driver
+detects the Boomi runtime by itself. Follow the **[step-by-step tutorial](TUTORIAL.md)**, then see
+[FEATURES.md, section 11](FEATURES.md#11-running-inside-boomi) for every option (repeated queries, resets, stored
+procedures, ...).
 
-```java
-   Class.forName(MockJdbcDriver.class.getCanonicalName());
-   MockJdbcDriver.reset(); //reset the step counter 
-   MockJdbcDriver.addInMemoryTableResource(0,	// result set for the first query which will be executed 
-                     "name, age\n"+
-                     "John, 20"  );
-   MockJdbcDriver.addInMemoryTableResource(1,	// result set for the second query which will be executed 
-                     "id, country\n"+
-                     "1, Italy\n"+
-                     "2, USA"  );
-   MockJdbcDriver.addInMemoryTableResource(2,	// result set for the third query which will be executed 
-                     "id, make, model, owner\n"+
-                     "1, Mazda, CX-5, Mark Twain\n"+
-                     "2, Ford, Focus, JF Kennedy"  );
-```
-
-
-## New Methods in 1.4.0
-Three new methods have been added to `com.googlecode.dummyjdbc.DummyJdbcDriver` in order to support:
-* InMemory resources for resultsets
-* differentiated resultsers depending on query parameters
-* capturing INSERT/UPDATE parameters
-
-```Java
-/**
- * Add the CSV contained the string 'value' to the list of available resultsets
- */
-public static void addInMemoryTableResource(String testID, String value);
-
-/**
- * Add the CSV contained the InputStream 'valueStream' to the list of available resultsets
- */
-public static void addInMemoryTableResource(String testID, InputStream valueStream);
-
-/**
- * Get the current value of the resource, used mainly to examine the parameters used for INSERT/UPDATE queries
- */
-public static String getInMemoryTableResource(String testID);
-```
-
-## Sample Usage
-```java
-@Test
-public void testInMemoryCSVFromString() throws ClassNotFoundException, URISyntaxException, SQLException {
-   Class.forName(MockJdbcDriver.class.getCanonicalName());
-
-   MockJdbcDriver.addInMemoryTableResource("TEST1", 
-                     "\n"+
-                     "name, age\n"+
-                     "John, 20"+
-                     "\n"
-   );
-
-   Connection connection = DriverManager.getConnection("any");
-   PreparedStatement statement = connection.prepareStatement(
-         "-- TESTCASE:test1\n"+
-         "SELECT * FROM test_table");
-
-   Assert.assertTrue(statement instanceof CsvPreparedStatement);
-   resultSet = statement.executeQuery();
-
-   Assert.assertTrue(resultSet.next());
-   Assert.assertEquals("John", resultSet.getString(1));
-   Assert.assertEquals(20, resultSet.getInt(2));
-   Assert.assertEquals("John", resultSet.getString("name"));
-   Assert.assertEquals(20, resultSet.getInt("age"));
-}
-```
-
-## How in memory resources are selected
-
-### Explicit comment in SQL
-InMemory resource 'name' will be inferred by using some logic
-
-```SQL
--- TESTCASE: Hello1
-SELECT *
-FROM TableUsedEverywhere
-```
-will search for resource: `Hello1` (case insensitive)
-
-### Table name deduction
-This is derived from the original dumymjdbc design, with some added REGEX for INSERT/UPDATE queries
-
-```SQL
-SELECT name
-FROM mytable
-WHERE surname='Happy'
-```
-will search for resource: `mytable` (case insensitive)
-
-### Parameters
-In order to make possible more sophisticated test cases the driver now will try to match also parameters
-So the following query:
-```SQL
-SELECT name
-FROM mytable
-WHERE surname=? AND age=?
-```
-with parameters "Smith" and "34" will search for resources in the following order (always case-insensitive):
-* `mytable?Smith,34`
-* `mytable`
-
-## Testing INSERT/UPDATE/DELETE queries
-One key part of testing how the application interacts with the DB is to capture if it performed the right INSERT/UPDATE queries, this is now possible.
-
-When updating a table now the parameters are captured and stored into a String which will be accessible for testing purposes
-
-### How to know which parameters have been used for a query
-A new InMemory resource will be created with name equals to the name of the table + `_PARAMS`
-E.g: when updating table `users` a new key will be added with name `users_PARAMS`
-
-### Sample code
+## Quick start in Java
 
 ```java
-        Class.forName(MockJdbcDriver.class.getCanonicalName());
+MockJdbcDriver.reset();
+MockJdbcDriver.addInMemoryTableResource("users",
+        "id|integer, name\n" +
+        "1, John\n" +
+        "2, Mary");
 
-        Connection connection = DriverManager.getConnection("any");
-        PreparedStatement statement = connection.prepareStatement("INSERT INTO users (name,age) VALUES (?,?) ");
+Connection connection = DriverManager.getConnection("any");
 
-        statement.setString(1, "hello");
-        statement.setInt(2, 30);
-        status = statement.execute();
-        params = MockJdbcDriver.getInMemoryTableResource("users_PARAMS");
-        Assert.assertEquals("hello,30", params);
+ResultSet rs = connection.createStatement().executeQuery("SELECT * FROM users");   // John, Mary
+
+PreparedStatement insert = connection.prepareStatement("INSERT INTO users (id, name) VALUES (?, ?)");
+insert.setInt(1, 3);
+insert.setString(2, "Anna");
+insert.executeUpdate();
+assertEquals("3,Anna", MockJdbcDriver.getInMemoryTableResource("users_PARAMS"));
 ```
 
+## Key features
 
-## dummyjdbc at Maven Central [OUTDATED]
+* **Datasets in memory or on file**: CSV strings, `InputStream`s, files, a `/tables/` folder on the classpath (also inside
+  a jar) or a directory per database (`jdbc::mock::<dir>`) – [sections 2, 7, 8](FEATURES.md#2-quick-start-in-memory-dataset).
+* **Flexible matching**: by table name, by an explicit `-- TESTCASE:` comment, by stored procedure name, by query
+  parameters (`users?Smith`), by execution step, and by repetition (`users#1`, `users#2`) –
+  [sections 3–5](FEATURES.md#3-how-a-query-finds-its-dataset).
+* **Captured writes**: parameters of INSERT, UPDATE, DELETE and procedure calls, also in batches –
+  [section 6](FEATURES.md#6-capturing-statement-parameters).
+* **Realistic results**: typed columns (`id|integer`, `price|double`, `day|date`, ...), `getObject`, SQL `NULL`,
+  `getColumns` and the other metadata used by tools – [sections 9–10](FEATURES.md#9-csv-format-reference).
+* **Boomi support** through Dynamic Process Properties, with no dependency on Boomi – [section 11](FEATURES.md#11-running-inside-boomi).
 
-In order to use the official version you can use Maven
-```xml
-<dependency>
-   <groupId>com.mindmercastis.dummyjdbc</groupId>
-   <artifactId>dummyjdbc</artifactId>
-   <version>1.5.0</version>
-</dependency>
-```
+## Installation
 
-In order to use v 1.4.0 at present you must download it directly from GitHub
+* **Jar**: download it from the [releases](https://github.com/SimoneAvogadro/dummyjdbc/releases), or build it with
+  `mvn package` (`target/mockjdbc-<version>.jar`; Java 8 bytecode). The Maven coordinates are
+  `me.avogadro.mockjdbc:mockjdbc` (not published on Maven Central: use `mvn install` for a local repository).
+* **Runtime dependencies**: `net.sf.opencsv:opencsv` 2.3, `org.aspectj:aspectjrt` 1.9.22.1 and `org.slf4j:slf4j-api`
+  (already provided by the Boomi runtime).
+* **Driver**: class `me.avogadro.mockjdbc.MockJdbcDriver`, JDBC URL `any` (or `jdbc::mock::<dir>`).
 
+In Boomi, upload the jar and its dependencies to a Custom Library; when you upgrade, stop the Atom, delete the old jars
+and restart it ([details](FEATURES.md#installation)).
 
-## Overview
+## Documentation
 
-![Design](https://raw.githubusercontent.com/wiki/kaiwinter/dummyjdbc/images/dummyjdbc-design.png)
+* [TUTORIAL.md](TUTORIAL.md) – step-by-step Boomi unit test.
+* [FEATURES.md](FEATURES.md) – complete guide to every feature.
+* [CHANGELOG.md](CHANGELOG.md) – what changed in each version, including the history of dummyjdbc.
+* [FUTURE.md](FUTURE.md) – ideas and known issues not addressed yet.
+
+## Credits and license
+
+mockjdbc is based on [dummyjdbc](https://github.com/kaiwinter/dummyjdbc) by Kai Winter and is distributed under the
+Apache License 2.0 (see [LICENSE](LICENSE)).

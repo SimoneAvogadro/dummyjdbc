@@ -1,8 +1,8 @@
 # Tutorial: unit testing a Boomi process with mockjdbc
 
 This step-by-step tutorial builds a Boomi **unit test** for a process that reads and writes a database, without
-touching the real database. The process keeps its real database connection; only when the test runs, an
-**extension** replaces the driver of that connection with mockjdbc, which then plays the database:
+touching the real database. The process keeps its real database connection; only when the test runs, **extensions**
+replace the driver of that connection with mockjdbc, which then plays the database:
 
 * the test **provides the table data** that the process will read;
 * the test **checks the parameters** that the process wrote.
@@ -14,7 +14,7 @@ end.
 
 1. [Before you start](#1-before-you-start)
 2. [The process under test](#2-the-process-under-test)
-3. [The database connection stays the real one](#3-the-database-connection-stays-the-real-one)
+3. [Keep the real connection and make it extensible](#3-keep-the-real-connection-and-make-it-extensible)
 4. [Create the test process](#4-create-the-test-process)
 5. [Path 1: prepare the mock table](#5-path-1-prepare-the-mock-table)
 6. [Path 2: run the process under test](#6-path-2-run-the-process-under-test)
@@ -58,32 +58,29 @@ Neither the process nor its connection component change: the switch to mockjdbc 
 
 ---
 
-## 3. The database connection stays the real one
+## 3. Keep the real connection and make it extensible
 
-The process uses the **Database (Legacy) Connection** "DB Connection", configured as usual for the **real** database
-(its own driver class, connection URL, user and password). **Leave it as it is**: deployed processes keep using the real
-database, and the unit test replaces only two of its fields when it runs:
+The process uses the **Database (Legacy) Connection** "DB Connection", configured as usual for the **real** database.
+**Leave it as it is**: deployed processes keep using the real database. The unit test replaces three of its fields when
+it runs:
 
 | Field | Value used by the test |
 |-------|------------------------|
+| Driver Type | `Custom` |
 | Class Name | `me.avogadro.mockjdbc.MockJdbcDriver` |
 | Connection URL | `any` |
 
-User name and password stay those of the real connection: mockjdbc ignores them. How to apply this replacement is
-explained in [step 8](#8-run-the-test-with-mockjdbc-instead-of-the-real-db).
+The **Driver Type** must be overridden too: a real connection usually has a predefined type (SQL Server, Oracle, ...)
+and only the `Custom` type uses the *Class Name*. User name and password stay those of the real connection: mockjdbc
+ignores them.
 
-This assumes the real connection uses Driver Type **Custom** (with the class name of the real database driver), so that
-*Class Name* is a field that can be overridden. With a predefined Driver Type (e.g. SQL Server, Oracle) check that
-*Class Name* is available among the extensions of the connection.
+To make these fields replaceable, open the **Extensions** of the test process, tab **Connection Settings**, choose
+**DB Connection** and select *Driver Type*, *Class Name* and *Connection URL* as extensible properties:
 
-> **Alternative: a connection dedicated to tests.** You can also create a separate connection component that always
-> uses mockjdbc (Driver Type `Custom`, the class name and URL above, any user name):
->
-> ![A Database (Legacy) connection configured with the mockjdbc driver](docs/images/tutorial/06-db-connection.png)
->
-> This is simpler for a quick try, but the process must then use that connection, so it is not the one you deploy.
-> Overriding the real connection, as below, tests the process exactly as it is. The same class name and URL also work
-> with the Database V2 connector.
+![Process Extensions: Driver Type, Class Name and Connection URL of DB Connection are extensible](docs/images/tutorial/06-process-extensions.png)
+
+The values are set when the test runs ([step 8](#8-run-the-test-with-mockjdbc-instead-of-the-real-db)). The same
+fields and values also work with the Database V2 connector.
 
 ---
 
@@ -177,19 +174,18 @@ times, each write is also kept as `mockjdbc_users_PARAMS#1`, `mockjdbc_users_PAR
 
 Run the test process in **Test Mode** and override the database connection there:
 
-![Test Mode: Test Extensions, Connection Settings of DB Connection overridden with mockjdbc](docs/images/tutorial/07-test-extensions.png)
+![Test Mode: Test Extensions, Driver Type, Class Name and Connection URL of DB Connection overridden with mockjdbc](docs/images/tutorial/07-test-extensions.png)
 
 1. Open the test process, click **Test** and choose **New Test** on your test runtime.
 2. Expand **Test Extensions** and open the **Connection Settings** tab.
 3. Select the connection used by the process under test: **DB Connection**.
-4. **Class Name**: uncheck *Use connection component value* and enter `me.avogadro.mockjdbc.MockJdbcDriver`.
-5. **Connection URL**: uncheck *Use connection component value* and enter `any`.
-6. Run the test.
+4. For **Class Name**, **Connection URL** and **Driver Type** uncheck *Use connection component value* and enter
+   `me.avogadro.mockjdbc.MockJdbcDriver`, `any` and `Custom`.
+5. Run the test.
 
-Only the connection fields defined as **extensions** of the process appear in Test Extensions: if *DB Connection* (or
-one of the two fields) is missing, add *Class Name* and *Connection URL* of the connection in the process
-**Extensions** first. The Test Extensions values are used for this test only. To run the tests in a deployed test
-environment, set the same two values as **Environment Extensions** of that environment instead.
+Only the fields made extensible in [step 3](#3-keep-the-real-connection-and-make-it-extensible) appear here. The Test
+Extensions values are used for this test only and do not change the extensions of your environments. To run the tests
+in a deployed test environment, set the same three values as **Environment Extensions** of that environment instead.
 
 What to expect:
 
