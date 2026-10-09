@@ -1,7 +1,7 @@
 Change Log
 ==========
 
-Unreleased
+Version 2.0.1 (2026-10-09)
 ----------------------------
 
  * The per-thread counters keep only JDK classes in their ThreadLocal: a driver class stored there kept the driver's
@@ -11,6 +11,7 @@ Unreleased
  * Inside Boomi (class `com.boomi.execution.ExecutionManager` present) the driver no longer registers itself in
    `DriverManager`, which kept the Custom Library class loader and its jars in use; a startup log line
    (`java.util.logging`) tells whether the driver is registered
+ * Documentation: step-by-step Boomi tutorial (`TUTORIAL.md`) and a Boomi unit test example in FEATURES.md
  * Fixed: a `/tables/<name>.csv` inside a jar on the classpath failed with "URI is not hierarchical" (also in the
    original dummyjdbc); it is now read from the jar, without caching so the jar is not kept open
 

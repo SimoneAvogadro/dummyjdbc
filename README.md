@@ -4,7 +4,7 @@
 > **mockjdbc** is the new name of this fork of [dummyjdbc](https://github.com/kaiwinter/dummyjdbc), the original project
 > by Kai Winter. The GitHub repository still keeps its old name for now.
 
-**Current version: 2.0.0** – see the [CHANGELOG](CHANGELOG.md) for what changed (new name, Boomi support, metadata,
+**Current version: 2.0.1** – see the [CHANGELOG](CHANGELOG.md) for what changed (new name, Boomi support, metadata,
 NULL values, repeated queries and much more). Using it to unit test Boomi processes? Follow the
 [step-by-step tutorial](TUTORIAL.md).
 
