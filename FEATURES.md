@@ -273,6 +273,10 @@ Table names are matched case-insensitively, and you can register as many tables 
 If nothing else matches, the driver looks for `/tables/<tablename>.csv` on the classpath
 (e.g. `src/test/resources/tables/users.csv` for `SELECT * FROM users`). No Java code needed.
 
+The `tables/` folder can be in a directory of the classpath or **inside a jar** (e.g. a jar of test data next to the
+driver, the only option in runtimes such as Boomi). The file is looked up with the driver's class loader, the table
+name in lower case, and read with the default charset of the VM; a jar is read without caching, so it is not kept open.
+
 ### c) A directory per "database"
 
 See the next section.

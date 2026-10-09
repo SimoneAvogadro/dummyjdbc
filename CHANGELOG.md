@@ -7,6 +7,8 @@ Unreleased
  * The per-thread counters keep only JDK classes in their ThreadLocal: a driver class stored there kept the driver's
    class loader (and its jar file) alive on long-lived pooled threads, preventing the runtime from replacing the jar
  * `MockJdbcDriver.deregister()` removes the driver from `DriverManager`, for containers that unload it
+ * Fixed: a `/tables/<name>.csv` inside a jar on the classpath failed with "URI is not hierarchical" (also in the
+   original dummyjdbc); it is now read from the jar, without caching so the jar is not kept open
 
 Version 2.0.0 (2026-10-08)
 ----------------------------

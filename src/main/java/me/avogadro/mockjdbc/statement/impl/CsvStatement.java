@@ -2,14 +2,13 @@ package me.avogadro.mockjdbc.statement.impl;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.StringReader;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.security.CodeSource;
+import java.net.URLConnection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.MessageFormat;
@@ -283,36 +282,41 @@ public final class CsvStatement extends StatementAdapter {
 		
 		// Does a text file for the mock table exist?
 		File resource = tableResources.get(tableName.toLowerCase());
+		// a /tables/<name>.csv found on the classpath but not in a directory (e.g. inside a jar)
+		URL classpathResource = null;
 		if (resource == null && inMemoryReader == null) {
-			// Try to load a file from the ./tables/ directory
-			CodeSource src = CsvStatement.class.getProtectionDomain().getCodeSource();
-
-			String path = src.getLocation().getPath();
-			path = path.substring(0, path.lastIndexOf("/"));
-			try {
-				URL url = CsvStatement.class.getResource("/tables/" + tableName.toLowerCase() + ".csv");
-				if (url == null) {
-					LOGGER.info("No table definition found for '{}', using MockResultSet.", tableName);
-					return new MockResultSet();
-				} else {
+			// Try to load /tables/<name>.csv from the classpath: a directory or a jar
+			URL url = CsvStatement.class.getResource("/tables/" + tableName.toLowerCase() + ".csv");
+			if (url == null) {
+				LOGGER.info("No table definition found for '{}', using MockResultSet.", tableName);
+				return new MockResultSet();
+			} else if ("file".equalsIgnoreCase(url.getProtocol())) {
+				try {
 					resource = new File(url.toURI());
+				} catch (URISyntaxException e) {
+					LOGGER.error("Error creating URI for table file: {}", e.getMessage(), e);
 				}
-			} catch (URISyntaxException e) {
-				LOGGER.error("Error creating URI for table file: {}", e.getMessage(), e);
+			} else {
+				classpathResource = url;
 			}
 		}
 
 		Reader tableReader = null;
 		try {
-			if (resource==null) {
-				tableReader = inMemoryReader;	// might be null => no inMemoryCSV
-			} else {
-				// files are read with the default charset of the VM
+			// files and classpath resources are read with the default charset of the VM
+			if (resource != null) {
 				tableReader = new InputStreamReader(new FileInputStream(resource));
+			} else if (classpathResource != null) {
+				URLConnection connection = classpathResource.openConnection();
+				// no cache: a cached jar stays open (and locked on Windows) until the JVM stops
+				connection.setUseCaches(false);
+				tableReader = new InputStreamReader(connection.getInputStream());
+			} else {
+				tableReader = inMemoryReader;	// might be null => no inMemoryCSV
 			}
 			return createGenericResultSet(tableName, tableReader);
-		} catch (FileNotFoundException e) {
-			LOGGER.info("No table definition found for '{}', using MockResultSet.", tableName);
+		} catch (IOException e) {
+			LOGGER.info("No table definition found for '{}', using MockResultSet.", tableName, e);
 		} finally {
 			if (tableReader != null) {
 				try {
