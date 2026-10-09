@@ -5,8 +5,8 @@
 > by Kai Winter. The GitHub repository still keeps its old name for now.
 
 **Current version: 2.0.0** – see the [CHANGELOG](CHANGELOG.md) for what changed (new name, Boomi support, metadata,
-NULL values, repeated queries and much more). Using it to unit test Boomi processes? See the
-[Boomi example](FEATURES.md#example-unit-test-of-a-boomi-process).
+NULL values, repeated queries and much more). Using it to unit test Boomi processes? Follow the
+[step-by-step tutorial](TUTORIAL.md).
 
 mockjdbc answers database requests of any application with mock data to be independent of an existing database.
 

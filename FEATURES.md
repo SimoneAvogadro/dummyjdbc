@@ -608,7 +608,8 @@ process under test uses a Database connection whose driver is mockjdbc (`me.avog
    `mockjdbc_users_PARAMS` (the parameters of the last write into `users`) with the expected value `3,Duke,Nukem`:
    the test ends normally when they match, with an Exception otherwise.
 
-The editable sources of this picture are in [`docs/sources`](docs/sources).
+For a step-by-step guide to build this test, see the [tutorial](TUTORIAL.md). The editable sources of this picture are
+in [`docs/sources`](docs/sources).
 
 ### Counters across executions
 
