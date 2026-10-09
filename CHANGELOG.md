@@ -14,6 +14,9 @@ Unreleased
  * Fixed: a `/tables/<name>.csv` inside a jar on the classpath failed with "URI is not hierarchical" (also in the
    original dummyjdbc); it is now read from the jar, without caching so the jar is not kept open
 
+ * Known issue (Boomi on Windows): jars of a removed Custom Library stay locked by the runtime and, for the Legacy
+   connector, on the classpath; upgrading still requires stopping the Atom, deleting the old jars and restarting
+
 Version 2.0.0 (2026-10-08)
 ----------------------------
 

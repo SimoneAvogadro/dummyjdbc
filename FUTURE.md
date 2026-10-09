@@ -69,9 +69,26 @@ implemented yet**. Each item says what is missing today and what a change would 
 * **Idea:** decide whether in-memory should override files, since it is registered closer to the test; document the
   decision either way.
 
+## Boomi runtime
+
+### 9. Jar files of a removed library stay locked (unresolved)
+
+* **Today:** on Windows, after a mockjdbc jar is removed from a Custom Library, the Boomi cleanup reports
+  `Unable to remove un-deployed jar file` for it and for the other jars of the same library (also data-only jars), in
+  the Legacy (`userlib\database`) and in the Database V2 folder. Stopping the Atom, deleting the jars and restarting is
+  required (documented in FEATURES.md, section 11).
+* **Done on the driver side:** no driver class in ThreadLocals (2.0.1), `/tables/` read from jars without caching,
+  no registration in `DriverManager` inside Boomi. With these, after a forced GC one of the two driver class loaders
+  was released (impossible with b12), but the runtime still keeps the removed jar open: the remaining reference is held
+  by Boomi itself.
+* **Legacy:** Boomi does not add a removed jar to `ignored_jars.txt` of `userlib\database`, so the jar stays on the
+  classpath and the cleanup never tries to delete it.
+* **Idea:** investigate with Boomi support (class loader lifecycle of Custom Libraries on Windows); nothing else known
+  to change in the driver.
+
 ## Build
 
-### 9. Logging dependencies and the AspectJ tracing aspect
+### 10. Logging dependencies and the AspectJ tracing aspect
 
 * **Today:** the build targets Java 8 and works on current JDKs (AspectJ weaving via `dev.aspectj:aspectj-maven-plugin`).
   `logback-classic`/`logback-core` are still declared as normal dependencies, so they end up in the classpath of every
@@ -82,7 +99,7 @@ implemented yet**. Each item says what is missing today and what a change would 
 
 ## Documentation
 
-### 10. Slimmer README
+### 11. Slimmer README
 
 * **Today:** the README links to `FEATURES.md`, but its older sections ("New Methods in 1.4.0", "1.5.0", sample usage)
   partly duplicate it, and it still refers to the old Maven coordinates and the upstream wiki.

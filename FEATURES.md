@@ -481,9 +481,16 @@ In the Database connection choose a custom driver with:
 * driver class `me.avogadro.mockjdbc.MockJdbcDriver`;
 * connection URL `any` (or `jdbc::mock::<dir>`, see [section 8](#8-several-databases-with-jdbc-urls)).
 
-**When you upgrade the jar**, make sure the old one is really gone: on Windows the runtime cannot delete jars in use
-while the Atom is running, and in a folder without `ignored_jars.txt` (e.g. `userlib\database` for the legacy Database
-connector) an old mockjdbc jar can hide the new one. Stop the Atom, delete the old mockjdbc jars, then start it again.
+**When you upgrade the jar: stop the Atom, delete the old mockjdbc jars (and the old data jars of the same library),
+then start the Atom again.** This is needed with both Database connectors:
+
+* **Database V2** (and Custom Library in general): on Windows the runtime keeps the jars of a removed library open, so
+  its cleanup fails with `Unable to remove un-deployed jar file`. The driver does its part (it opens no jar on its own
+  and, inside Boomi, does not register in `DriverManager`, see [Detection](#detection)), but the remaining reference is
+  held by the runtime.
+* **Legacy Database connector** (`userlib\database`): the procedure is needed **even when no file is locked**. When a jar
+  leaves the library, Boomi does not add it to `ignored_jars.txt` of that folder, so the old jar stays on the legacy
+  classpath (it can hide the new one) and the cleanup does not even try to delete it.
 
 The Database V2 connector reads the connection metadata before running queries
 (see [section 10](#10-resolution-order-and-good-to-know)). For the operations it builds from the table definition
