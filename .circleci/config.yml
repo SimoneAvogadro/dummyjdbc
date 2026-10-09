@@ -1,24 +1,15 @@
-# Java Maven CircleCI 2.0 configuration file
+# CircleCI configuration: builds the jar and runs the unit tests with Maven.
 #
-# Check https://circleci.com/docs/2.0/language-java/ for more details
+# The project targets Java 8 bytecode, but the build (AspectJ 1.9.22) needs a recent JDK.
 #
-version: 2
+version: 2.1
+
 jobs:
   build:
     docker:
-      # specify the version you desire here
-      - image: circleci/openjdk:8-jdk
-
-      # Specify service dependencies here if necessary
-      # CircleCI maintains a library of pre-built images
-      # documented at https://circleci.com/docs/2.0/circleci-images/
-      # - image: circleci/postgres:9.4
+      - image: cimg/openjdk:21.0
 
     working_directory: ~/repo
-
-    environment:
-      # Customize the JVM maximum heap limit
-      # MAVEN_OPTS: -Xmx3200m
 
     steps:
       - checkout
@@ -26,16 +17,25 @@ jobs:
       # Download and cache dependencies
       - restore_cache:
           keys:
-            - v1-dependencies-{{ checksum "pom.xml" }}
+            - v2-dependencies-{{ checksum "pom.xml" }}
             # fallback to using the latest cache if no exact match is found
-            - v1-dependencies-
+            - v2-dependencies-
 
-      - run: mvn dependency:go-offline
+      # Build the jar and run the tests
+      - run: mvn -B clean verify
 
       - save_cache:
           paths:
             - ~/.m2
-          key: v1-dependencies-{{ checksum "pom.xml" }}
+          key: v2-dependencies-{{ checksum "pom.xml" }}
 
-      # run tests!
-      - run: mvn integration-test
+      - store_test_results:
+          path: target/surefire-reports
+
+      - store_artifacts:
+          path: target/surefire-reports
+
+workflows:
+  build:
+    jobs:
+      - build
