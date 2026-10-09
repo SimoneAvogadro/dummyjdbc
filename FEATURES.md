@@ -18,7 +18,7 @@ This guide starts from the simplest case and builds up.
 8. [Several "databases" with JDBC URLs](#8-several-databases-with-jdbc-urls)
 9. [CSV format reference](#9-csv-format-reference)
 10. [Resolution order and good-to-know](#10-resolution-order-and-good-to-know)
-11. [Running inside Boomi](#11-running-inside-boomi)
+11. [Running inside Boomi](#11-running-inside-boomi) (with an [example](#example-unit-test-of-a-boomi-process))
 12. [API summary](#12-api-summary)
 
 ---
@@ -585,6 +585,30 @@ String params = ExecutionUtil.getDynamicProcessProperty("mockjdbc_users_params")
 
 The value is the same one returned by `MockJdbcDriver.getInMemoryTableResource("users_PARAMS")`, which keeps working
 as before. The numbered copies are set too: `mockjdbc_users_PARAMS#n` and `mockjdbc_users_params#n`.
+
+### Example: unit test of a Boomi process
+
+![Unit test of a Boomi process that reads and writes a database, using mockjdbc](docs/images/boomi-unit-test-example.webp)
+
+The test process above checks a process that reads and writes a database, without touching the real database. The
+process under test uses a Database connection whose driver is mockjdbc (`me.avogadro.mockjdbc.MockJdbcDriver`, URL
+`any`). A Branch shape runs three paths in order:
+
+1. **Prepare the mock data.** A Message step ("Mock table") produces the CSV of the table:
+   ```csv
+   id,name,surname
+   1,Max,Mad
+   2,Jon,Doe
+   ```
+   A Set Properties step ("send to MockJDBC") stores it in the Dynamic Process Property `mockjdbc_users` (Current Data):
+   from now on `SELECT ... FROM users` returns these rows.
+2. **Run the process under test** with a Process Call ("[S] Process which reads+writes DB"). It shares the Dynamic
+   Process Properties of the test, so it reads the mock table and its INSERT/UPDATE parameters are captured.
+3. **Check what was written.** A Decision step ("Wrote the expected data?") compares the Dynamic Process Property
+   `mockjdbc_users_PARAMS` (the parameters of the last write into `users`) with the expected value `3,Duke,Nukem`:
+   the test ends normally when they match, with an Exception otherwise.
+
+The editable sources of this picture are in [`docs/sources`](docs/sources).
 
 ### Counters across executions
 
